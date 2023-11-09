@@ -42,44 +42,33 @@ impl RustScreenRecorder {
         TopBottomPanel::top("top panel").show(ctx, |ui| {
         menu::bar(ui, |ui| {
             ui.horizontal(|ui| {
-                ui.menu_button("screen ", |ui| {
+            if ui.button("Screen").clicked() {
                     let image_ref = screens.capture().unwrap();
                     image_ref.save(format!("target/{}.png", screens.display_info.id))
                     .unwrap();
-            });
-            ui.menu_button("select area", |ui| {
-                
-            });
-            ui.menu_button("edit", |ui| {
-                if ui.button("Open").clicked() {
+            }           
+            if ui.button("Screen area").clicked() {
+                // …
+            }
+            if ui.button("Edit").clicked() {
                     // …
-                }
-            });
-            ui.menu_button("save", |ui| {
-                if ui.button("Open").clicked() {
+            }
+            if ui.button("Save").clicked() {
                     // …
-                }
-            });
-            ui.menu_button("save as", |ui| {
-                if ui.button("Open").clicked() {
+            }
+            if ui.button("save as").clicked() {
                     // …
-                }
-            });
-            ui.menu_button("monitor", |ui| {
-                if ui.button("Open").clicked() {
+            }
+            if ui.button("Monitor").clicked() {
                     // …
-                }
-            });
-            ui.menu_button("settings", |ui| {
-                if ui.button("Open").clicked() {
+            }
+            if ui.button("Settings").clicked() {
                     // …
-                }
-            });
-            ui.menu_button("copy", |ui| {
-                if ui.button("Open").clicked() {
+            }
+            if ui.button("Copy").clicked() {
                     // …
-                }
-            });
+            }
+           
         });
         
     });
