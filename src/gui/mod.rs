@@ -52,14 +52,20 @@ impl RustScreenRecorder {
             ui.horizontal(|ui| {
             if ui.button("Screen").clicked() {
                 //frame.request_screenshot();
+                    self.screen=false;
                    self.image = screens.capture().unwrap();
-                   self.image.save(format!("target/{}.png", screens.display_info.id))
-                    .unwrap();
-               
-                    self.screen=true;
-                    self.ctx=ctx.clone();
+                   let res=self.image.save(format!("target/{}.png", screens.display_info.id));
+                   match res{
+                    Ok(v)=> self.screen=true,
+                    Err(e)=>print!("err"),
+                   }
+                       
+                   
+                
+                   
+                    //self.ctx=ctx.clone();
                   
-            }           
+            }          
             if ui.button("Screen area").clicked() {
                 // …
             }
@@ -92,26 +98,32 @@ impl RustScreenRecorder {
 
 impl eframe::App for RustScreenRecorder {
    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-   if self.screen==true {
-    egui::CentralPanel::default().show(ctx, |ui| {
-                ui.add(
-                    egui::Image::new(egui::include_image!( "../../target/1.png"))
-                            .fit_to_original_size(0.48)
-                );
-          
-           });
-   }
+    if self.screen==true {
+        egui::CentralPanel::default().show(ctx, |ui| {
+                    ui.add(
+                        egui::Image::new(egui::include_image!( "../../target/1.png"))
+                                .fit_to_original_size(0.48)
+                    );
+              
+               });
+      
+        
+       }
     self.show_menu(ctx, frame);
       
    }
    fn post_rendering(&mut self, _window_size: [u32; 2], frame: &eframe::Frame) {
-     egui::CentralPanel::default().show(&self.ctx, |ui| {
-                ui.add(
-                    egui::Image::new(egui::include_image!( "../../target/1.png"))
-                            .fit_to_original_size(0.48)
-                );
-          
-           });
+    // if self.screen==true {
+    //     egui::CentralPanel::default().show(&self.ctx, |ui| {
+    //                 ui.add(
+    //                     egui::Image::new(egui::include_image!( "../../target/1.png"))
+    //                             .fit_to_original_size(0.48)
+    //                 );
+              
+    //            });
+      
+        
+    //    }
 
 }
 }
