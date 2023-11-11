@@ -1,11 +1,6 @@
 use screenshots::{
-    image::{GenericImage, RgbaImage},
+    image::{DynamicImage, GenericImage, RgbaImage},
     Screen,
-};
-use std::{
-    env::consts::OS,
-    fs,
-    io::{self},
 };
 
 struct DisplayImage {
@@ -21,7 +16,7 @@ pub fn get_all_display() -> Vec<Screen> {
     }
 }
 
-pub fn take_screenshot_all_displays() -> Option<RgbaImage> {
+pub fn take_screenshot_all_displays() -> Option<DynamicImage> {
     let multi_display_images: Vec<DisplayImage> = get_all_display()
         .into_iter()
         .map(|screen| {
@@ -58,7 +53,7 @@ pub fn take_screenshot_all_displays() -> Option<RgbaImage> {
             )
             .unwrap();
     }
-    Some(image)
+    Some(DynamicImage::from(image))
 }
 
 pub fn take_screenshot_area(
@@ -67,9 +62,9 @@ pub fn take_screenshot_area(
     y: i32,
     width: u32,
     height: u32,
-) -> Option<RgbaImage> {
+) -> Option<DynamicImage> {
     match screen.capture_area(x, y, width, height) {
-        Ok(image) => Some(image),
+        Ok(image) => Some(DynamicImage::from(image)),
         Err(e) => {
             eprintln!("Error: {}", e);
             None
@@ -77,30 +72,12 @@ pub fn take_screenshot_area(
     }
 }
 
-pub fn take_screenshot_display(screen: Screen) -> Option<RgbaImage> {
+pub fn take_screenshot_display(screen: Screen) -> Option<DynamicImage> {
     match screen.capture() {
-        Ok(image) => Some(image),
+        Ok(image) => Some(DynamicImage::from(image)),
         Err(e) => {
             eprintln!("Error: {}", e);
             None
         }
     }
-}
-
-pub fn save_file<T: AsRef<[u8]>>(
-    file: T,
-    filename: String,
-    path: Option<String>,
-) -> io::Result<()> {
-    match path {
-        Some(p) => {
-            let file_path = format!("{}/{}", p, filename);
-            fs::write(file_path, file)
-        }
-        None => fs::write(format!("target/{}", filename), file),
-    }
-}
-
-pub fn os_type() {
-    println!("{:?}", OS)
 }
