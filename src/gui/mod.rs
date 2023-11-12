@@ -22,13 +22,19 @@ pub fn main_window() -> eframe::Result<()> {
         Box::new(|cc| Box::new(RustScreenRecorder::new(cc))),
     )
 }
-
+#[derive(PartialEq, Eq)]
+enum Mood{
+    Edit,
+    None,
+}
 struct RustScreenRecorder {
     screen_index: Option<u8>,
     image: TextureHandle,
     timer:Option<i64>,
     screenshot:Option<DynamicImage>,
     path:Option<PathBuf>,
+    edit:Mood,
+    shape:Option<String>
     // ctx: Context,
 }
 
@@ -57,11 +63,12 @@ impl RustScreenRecorder {
             timer:Some(0),
             screenshot:Some(screenshot),
             path:Some(p),
+            edit:Mood::None,
+            shape:Some("Cicle".to_string()),
         }
     }
     fn show_menu(&mut self, ctx: &Context) {
         let screens = get_all_display();
-
         TopBottomPanel::top("top panel").show(ctx, |ui| {
             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                     if ui.button("All Screens").clicked() {
@@ -106,7 +113,7 @@ impl RustScreenRecorder {
                     self.select_timer(ui);
 
                     if ui.button("Edit").clicked() {
-                        // …
+                        self.edit=Mood::Edit;
                     }
                     if ui.button("Save").clicked() {
                         self.save_image();
@@ -122,15 +129,46 @@ impl RustScreenRecorder {
                       self.copy_image();
                     }
                     self.select_monitor(ui);
+                   
                 });
             });
+                if self.edit==Mood::Edit{
+                   
+                    TopBottomPanel::top("bottom panel").show(ctx, |ui| {
+                        ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
+                            egui::ComboBox::from_label("")
+                            .width(80.0)
+                            .selected_text( self.shape.as_ref().unwrap().to_string())
+                            .show_ui(ui, |ui| {
+                                ui.selectable_value(&mut self.shape, Some("square".to_string()), "square");
+                                ui.selectable_value(&mut self.shape, Some("cicle".to_string()), "circle");
+                                ui.selectable_value(&mut self.shape, Some("arrow".to_string()), "arrow");
+                            });
+                                if ui.button("Text").clicked() {
+
+                                }
+                                if ui.button("Cut").clicked() {
+                                }
+                                if ui.button("Cancel").clicked() {
+                                }
+                                if ui.button(" Back ").clicked() {
+                                }
+                                if ui.button("Save").clicked() {
+                                }
+                                if ui.button("Exit").clicked() {
+                                    self.edit=Mood::None;
+                                }
+                            });
+});
+        }
        
+        
     }
 
 
     fn select_monitor(&mut self,ui:&mut Ui){
         let screens=get_all_display();
-        egui::ComboBox::from_id_source(0)
+        egui::ComboBox::from_label("Monitor")
         .selected_text(format!("Monitor {:?}", self.screen_index.unwrap()))
         .show_ui(ui, |ui| {
             ui.selectable_value(&mut self.screen_index,Some(0), "Monitor 0");
