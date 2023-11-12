@@ -1,13 +1,13 @@
-use std::{path::PathBuf, time::UNIX_EPOCH};
+use std::{path::PathBuf, time::UNIX_EPOCH, borrow::Cow};
 
 use crate::utility::screenshots::{
     get_all_display, take_screenshot_all_displays, take_screenshot_display,take_screenshot_area
 };
-use eframe::{egui, Frame};
-use egui::{menu, Context, TextureHandle, TopBottomPanel, Vec2, Ui, Align, Layout};
+use eframe::egui;
+use egui::{Context, TextureHandle, TopBottomPanel, Vec2, Ui, Align, Layout};
 use image::DynamicImage;
 use rfd::FileDialog;
-use screenshots::Screen;
+use arboard::Clipboard;
 
 pub fn main_window() -> eframe::Result<()> {
     let window_option = eframe::NativeOptions {
@@ -59,7 +59,7 @@ impl RustScreenRecorder {
             path:Some(p),
         }
     }
-    fn show_menu(&mut self, ctx: &Context, frame: &mut Frame) {
+    fn show_menu(&mut self, ctx: &Context) {
         let screens = get_all_display();
 
         TopBottomPanel::top("top panel").show(ctx, |ui| {
@@ -119,7 +119,7 @@ impl RustScreenRecorder {
                         // …
                     }
                     if ui.button("Copy").clicked() {
-                        // …
+                      self.copy_image();
                     }
                     self.select_monitor(ui);
                 });
@@ -205,13 +205,24 @@ impl RustScreenRecorder {
         None => {}
     }
     }
+    fn copy_image(&mut self){
+        let mut clipboard = Clipboard::new().unwrap();
+        let final_image = self.screenshot.as_ref().unwrap().clone();
+        let bytes = final_image.as_bytes();
+        let img = arboard::ImageData {
+            width: final_image.width() as usize,
+            height: final_image.height() as usize,
+            bytes: Cow::from(bytes),
+        };
+        let _done = clipboard.set_image(img);
+    }
 }
     
 
 
 impl eframe::App for RustScreenRecorder {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        self.show_menu(ctx, frame);
+        self.show_menu(ctx);
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.horizontal(|ui| {
                 ui.spacing();
@@ -225,16 +236,16 @@ impl eframe::App for RustScreenRecorder {
             });
         });
     }
-    fn post_rendering(&mut self, _window_size: [u32; 2], frame: &eframe::Frame) {
-        // if self.screen==true {
-        //     egui::CentralPanel::default().show(&self.ctx, |ui| {
-        //                 ui.add(
-        //                     egui::Image::new(egui::include_image!( "../../target/1.png"))
-        //                             .fit_to_original_size(0.48)
-        //                 );
+    // fn post_rendering(&mut self, _window_size: [u32; 2], frame: &eframe::Frame) {
+    //     // if self.screen==true {
+    //     //     egui::CentralPanel::default().show(&self.ctx, |ui| {
+    //     //                 ui.add(
+    //     //                     egui::Image::new(egui::include_image!( "../../target/1.png"))
+    //     //                             .fit_to_original_size(0.48)
+    //     //                 );
 
-        //            });
+    //     //            });
 
-        //    }
-    }
+    //     //    }
+    // }
 }
