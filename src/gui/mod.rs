@@ -1,13 +1,19 @@
+use std::{path::PathBuf, time::UNIX_EPOCH};
+
 use crate::utility::screenshots::{
-    get_all_display, take_screenshot_all_displays, take_screenshot_display,
+    get_all_display, take_screenshot_all_displays, take_screenshot_display,take_screenshot_area
 };
 use eframe::{egui, Frame};
-use egui::{menu, Context, TextureHandle, TopBottomPanel, Vec2};
+use egui::{menu, Context, TextureHandle, TopBottomPanel, Vec2, Ui, Align, Layout};
+use image::DynamicImage;
+use rfd::FileDialog;
+use screenshots::Screen;
 
 pub fn main_window() -> eframe::Result<()> {
     let window_option = eframe::NativeOptions {
         resizable: true,
         follow_system_theme: true,
+        maximized: true,
         ..Default::default()
     };
     eframe::run_native(
@@ -20,8 +26,12 @@ pub fn main_window() -> eframe::Result<()> {
 struct RustScreenRecorder {
     screen_index: Option<u8>,
     image: TextureHandle,
+    timer:Option<i64>,
+    screenshot:Option<DynamicImage>,
+    path:Option<PathBuf>,
     // ctx: Context,
 }
+
 
 impl RustScreenRecorder {
     fn new(cc: &eframe::CreationContext<'_>) -> Self {
@@ -35,38 +45,57 @@ impl RustScreenRecorder {
             ),
             Default::default(),
         );
+        let p=PathBuf::new();
+        
         // Customize egui here with cc.egui_ctx.set_fonts and cc.egui_ctx.set_visuals.
         // Restore app state using cc.storage (requires the "persistence" feature).
         // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that you can use
         // for e.g. egui::PaintCallback.
         Self {
-            screen_index: None,
+            screen_index: Some(0),
             image: i.clone(),
+            timer:Some(0),
+            screenshot:Some(screenshot),
+            path:Some(p),
         }
     }
     fn show_menu(&mut self, ctx: &Context, frame: &mut Frame) {
         let screens = get_all_display();
 
         TopBottomPanel::top("top panel").show(ctx, |ui| {
-            menu::bar(ui, |ui| {
-                ui.horizontal(|ui| {
+            ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                     if ui.button("All Screens").clicked() {
                         take_screenshot_all_displays();
                     }
                     if ui.button("Screen area").clicked() {
-                        // …
+                        match self.screen_index {
+                            Some(screen_index)=>{
+                                self.screenshot =
+                                    take_screenshot_area(screens[screen_index as usize].clone(),100,100,100,100)
+                                        ;
+                                self.image = ctx.load_texture(
+                                    "screenshot",
+                                    egui::ColorImage::from_rgba_unmultiplied(
+                                        [self.screenshot.as_ref().unwrap().width() as usize, self.screenshot.as_ref().unwrap().height() as usize],
+                                        self.screenshot.as_ref().unwrap().as_bytes(),
+                                    ),
+                                    Default::default(),
+                                );    
+                            }
+                            None=>(),   
+                        }
                     }
                     if ui.button("Selected Screen").clicked() {
                         match self.screen_index {
                             Some(screen_index) => {
-                                let screenshot =
+                                self.screenshot =
                                     take_screenshot_display(screens[screen_index as usize].clone())
-                                        .unwrap();
+                                        ;
                                 self.image = ctx.load_texture(
                                     "screenshot",
                                     egui::ColorImage::from_rgba_unmultiplied(
-                                        [screenshot.width() as usize, screenshot.height() as usize],
-                                        screenshot.as_bytes(),
+                                        [self.screenshot.as_ref().unwrap().width() as usize, self.screenshot.as_ref().unwrap().height() as usize],
+                                        self.screenshot.as_ref().unwrap().as_bytes(),
                                     ),
                                     Default::default(),
                                 );
@@ -74,17 +103,17 @@ impl RustScreenRecorder {
                             None => (),
                         }
                     }
+                    self.select_timer(ui);
+
                     if ui.button("Edit").clicked() {
                         // …
                     }
                     if ui.button("Save").clicked() {
-                        // …
+                        self.save_image();
                     }
-                    if ui.button("save as").clicked() {
-                        // …
-                    }
-                    if ui.button("Monitor").clicked() {
-                        self.screen_index = Some(0);
+
+                    if ui.button("Save as").clicked() {
+                        self.save_as_image();
                     }
                     if ui.button("Settings").clicked() {
                         // …
@@ -92,11 +121,93 @@ impl RustScreenRecorder {
                     if ui.button("Copy").clicked() {
                         // …
                     }
+                    self.select_monitor(ui);
                 });
             });
+       
+    }
+
+
+    fn select_monitor(&mut self,ui:&mut Ui){
+        let screens=get_all_display();
+        egui::ComboBox::from_id_source(0)
+        .selected_text(format!("Monitor {:?}", self.screen_index.unwrap()))
+        .show_ui(ui, |ui| {
+            ui.selectable_value(&mut self.screen_index,Some(0), "Monitor 0");
+            if screens.len()>1{
+            ui.selectable_value(&mut self.screen_index, Some(1), "Monitor 1");
+            }
+        });
+        ui.label(format!("You have selected Monitor {}", self.screen_index.unwrap()));
+    }
+
+    fn select_timer(&mut self,ui:&mut Ui){
+        egui::ComboBox::from_label("")
+        .width(80.0)
+        .selected_text(format!("🕓 {:?} sec", self.timer.unwrap()))
+        .show_ui(ui, |ui| {
+            ui.selectable_value(&mut self.timer, Some(0), "🕓 0 sec").on_hover_text("Delay screenshot");
+            ui.selectable_value(&mut self.timer, Some(5), "🕓 5 sec").on_hover_text("Delay screenshot");
+            ui.selectable_value(&mut self.timer, Some(10), "🕓 10 sec").on_hover_text("Delay screenshot");
         });
     }
+    fn save_as_image(&mut self){
+        let time = match std::time::SystemTime::now().duration_since(UNIX_EPOCH)
+        {
+            Ok(time_scr)=> time_scr.as_secs().to_string(),
+            Err(_) => "".to_string(),
+        };
+        let path =
+       FileDialog::new().add_filter("PNG", &["png"])
+            .add_filter("JPG", &["jpg"]).add_filter("GIF", &["gif"])
+            .add_filter("BMP", &["bmp"])
+            .set_directory("./")
+            .set_file_name(format!("Screen{}", time.as_str()))
+            .save_file();
+        match path {
+            Some(path) => {
+                match image::save_buffer(
+                    path,
+                    &self.screenshot.as_ref().unwrap().as_bytes(),
+                    self.screenshot.as_ref().unwrap().width() as u32,
+                    self.screenshot.as_ref().unwrap().height() as u32,
+            image::ColorType::Rgba8,) 
+                {
+                Ok(_) => println!("Screenshot saved"),
+                Err(err) => println!("{}", err),
+            }
+        }
+        None => {}
+    }
+    }
+    fn save_image(&mut self){
+        let mut p=self.path.as_ref().unwrap().clone();
+        let time = match std::time::SystemTime::now().duration_since(UNIX_EPOCH)
+        {
+            Ok(time_scr)=> time_scr.as_secs().to_string(),
+            Err(_) => "".to_string(),
+        };
+        p.push(format!("target/Screen{}", time.as_str()));
+        p.set_extension("png");
+        match  Some(p) {
+            Some(path) => {
+                match image::save_buffer(
+                    path,
+                    &self.screenshot.as_ref().unwrap().as_bytes(),
+                    self.screenshot.as_ref().unwrap().width() as u32,
+                    self.screenshot.as_ref().unwrap().height() as u32,
+            image::ColorType::Rgba8,) 
+                {
+                Ok(_) => println!("Screenshot saved"),
+                Err(err) => println!("{}", err),
+            }
+        }
+        None => {}
+    }
+    }
 }
+    
+
 
 impl eframe::App for RustScreenRecorder {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
