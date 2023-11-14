@@ -1,4 +1,4 @@
-use std::{borrow::Cow, path::PathBuf, time::UNIX_EPOCH};
+use std::{borrow::Cow, path::PathBuf};
 mod draw;
 use crate::utility::screenshots::{
     get_all_display, take_screenshot_all_displays, take_screenshot_area, take_screenshot_display,
@@ -55,7 +55,13 @@ impl RustScreenRecorder {
             ),
             Default::default(),
         );
-        let p = PathBuf::new();
+        let pic_dir = match dirs::picture_dir() {
+            Some(path) => path,
+            None => {
+                eprintln!("Unable to determine home directory");
+                dirs::home_dir().unwrap()
+            }
+        };
 
         // Customize egui here with cc.egui_ctx.set_fonts and cc.egui_ctx.set_visuals.
         // Restore app state using cc.storage (requires the "persistence" feature).
@@ -66,7 +72,7 @@ impl RustScreenRecorder {
             image: img,
             timer: Some(0),
             screenshot: Some(screenshot),
-            path: Some(p),
+            path: Some(pic_dir),
             edit: Mood::None,
             shape: Some(0),
             vec_shape: Vec::new(),
@@ -283,17 +289,16 @@ impl RustScreenRecorder {
             });
     }
     fn save_as_image(&mut self) {
-        let time = match std::time::SystemTime::now().duration_since(UNIX_EPOCH) {
-            Ok(time_scr) => time_scr.as_secs().to_string(),
-            Err(_) => "".to_string(),
-        };
         let path = FileDialog::new()
             .add_filter("PNG", &["png"])
             .add_filter("JPG", &["jpg"])
             .add_filter("GIF", &["gif"])
             .add_filter("BMP", &["bmp"])
-            .set_directory("./")
-            .set_file_name(format!("Screen{}", time.as_str()))
+            .set_directory(self.path.as_ref().unwrap().clone())
+            .set_file_name(format!(
+                "screenshot_{}",
+                chrono::Local::now().format("%Y_%m_%d_%H_%M_%S").to_string()
+            ))
             .save_file();
         match path {
             Some(path) => {
@@ -313,27 +318,12 @@ impl RustScreenRecorder {
     }
     fn save_image(&mut self) {
         let mut p = self.path.as_ref().unwrap().clone();
-        let time = match std::time::SystemTime::now().duration_since(UNIX_EPOCH) {
-            Ok(time_scr) => time_scr.as_secs().to_string(),
-            Err(_) => "".to_string(),
-        };
-        p.push(format!("target/Screen{}", time.as_str()));
-        p.set_extension("png");
-        match Some(p) {
-            Some(path) => {
-                match image::save_buffer(
-                    path,
-                    &self.screenshot.as_ref().unwrap().as_bytes(),
-                    self.screenshot.as_ref().unwrap().width() as u32,
-                    self.screenshot.as_ref().unwrap().height() as u32,
-                    image::ColorType::Rgba8,
-                ) {
-                    Ok(_) => println!("Screenshot saved"),
-                    Err(err) => println!("{}", err),
-                }
-            }
-            None => {}
-        }
+        p = p.join(format!(
+            "screenshot_{}.png",
+            chrono::Local::now().format("%Y_%m_%d_%H_%M_%S").to_string()
+        ));
+        //TODO: notify the user if the file exists
+        self.screenshot.as_ref().unwrap().save(p.clone()).unwrap();
     }
     fn copy_image(&mut self) {
         let mut clipboard = Clipboard::new().unwrap();
