@@ -82,11 +82,32 @@ impl RustScreenRecorder {
         TopBottomPanel::top("top panel").show(ctx, |ui| {
             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                 if ui.button("All Screens").clicked() {
-                    take_screenshot_all_displays();
+                    if self.timer.unwrap() != 0 {
+                        std::thread::sleep(std::time::Duration::from_secs(
+                            self.timer.unwrap() as u64
+                        ));
+                    }
+                    let screenshot = take_screenshot_all_displays();
+                    self.image = ctx.load_texture(
+                        "screenshot",
+                        egui::ColorImage::from_rgba_unmultiplied(
+                            [
+                                screenshot.as_ref().unwrap().width() as usize,
+                                screenshot.as_ref().unwrap().height() as usize,
+                            ],
+                            screenshot.as_ref().unwrap().as_bytes(),
+                        ),
+                        Default::default(),
+                    );
                 }
                 if ui.button("Screen area").clicked() {
                     match self.screen_index {
                         Some(screen_index) => {
+                            if self.timer.unwrap() != 0 {
+                                std::thread::sleep(std::time::Duration::from_secs(
+                                    self.timer.unwrap() as u64,
+                                ));
+                            }
                             self.screenshot = take_screenshot_area(
                                 self.screens[screen_index as usize].clone(),
                                 100,
@@ -112,6 +133,11 @@ impl RustScreenRecorder {
                 if ui.button("Selected Screen").clicked() {
                     match self.screen_index {
                         Some(screen_index) => {
+                            if self.timer.unwrap() != 0 {
+                                std::thread::sleep(std::time::Duration::from_secs(
+                                    self.timer.unwrap() as u64,
+                                ));
+                            }
                             self.screenshot = take_screenshot_display(
                                 self.screens[screen_index as usize].clone(),
                             );
@@ -225,9 +251,16 @@ impl RustScreenRecorder {
         egui::ComboBox::from_label("Monitor")
             .selected_text(format!("Monitor {:?}", self.screen_index.unwrap()))
             .show_ui(ui, |ui| {
-                ui.selectable_value(&mut self.screen_index, Some(0), "Monitor 0");
-                if screens.len() > 1 {
-                    ui.selectable_value(&mut self.screen_index, Some(1), "Monitor 1");
+                for (i, display) in screens.iter().enumerate() {
+                    ui.selectable_value(
+                        &mut self.screen_index,
+                        Some(i as u8),
+                        format!(
+                            "🖵 Display {}  {}x{}",
+                            i, display.display_info.width, display.display_info.height
+                        ),
+                    )
+                    .on_hover_text("Select display");
                 }
             });
         ui.label(format!(
@@ -321,7 +354,6 @@ impl eframe::App for RustScreenRecorder {
         egui::CentralPanel::default().show(ctx, |ui| {
             self.window_width = Some(ui.available_size().x as u32);
             self.window_height = Some(ui.available_size().y as u32);
-
             ui.vertical_centered(|ui| {
                 // ui.spacing();
                 let available_size = ui.available_size();
@@ -344,7 +376,7 @@ impl eframe::App for RustScreenRecorder {
                         )),
                 )
                 .with_new_rect(egui::Rect::from_min_size(
-                    egui::Pos2::new(x_offset, y_offset),
+                    egui::Pos2::new(x_offset - 255.0, y_offset),
                     Vec2::new(image_width, image_height),
                 ));
                 // draw::draw(ui, self.vec_shape.as_mut());
