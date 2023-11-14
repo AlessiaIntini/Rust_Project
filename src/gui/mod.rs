@@ -10,7 +10,6 @@ use image::DynamicImage;
 use rfd::FileDialog;
 
 pub fn main_window() -> eframe::Result<()> {
-
     let window_option = eframe::NativeOptions {
         resizable: true,
         follow_system_theme: true,
@@ -37,20 +36,18 @@ struct RustScreenRecorder {
     edit: Mood,
     shape: Option<i32>, // ctx: Context,
     vec_shape: Vec<draw::Shape>,
-    color:draw::Rgb, 
-    screens:Vec<screenshots::Screen>,
-    window_width:Option<u32>,
-    window_height:Option<u32>,
-    border:Option<i32>,
-
-
+    color: draw::Rgb,
+    screens: Vec<screenshots::Screen>,
+    window_width: Option<u32>,
+    window_height: Option<u32>,
+    border: Option<i32>,
 }
 
 impl RustScreenRecorder {
     fn new(cc: &eframe::CreationContext<'_>) -> Self {
         // cc.egui_ctx.set_visuals(egui::Visuals::light());
         let screenshot = take_screenshot_all_displays().unwrap();
-        let i = cc.egui_ctx.load_texture(
+        let img = cc.egui_ctx.load_texture(
             "screenshot",
             egui::ColorImage::from_rgba_unmultiplied(
                 [screenshot.width() as usize, screenshot.height() as usize],
@@ -66,7 +63,7 @@ impl RustScreenRecorder {
         // for e.g. egui::PaintCallback.
         Self {
             screen_index: Some(0),
-            image: i.clone(),
+            image: img,
             timer: Some(0),
             screenshot: Some(screenshot),
             path: Some(p),
@@ -74,15 +71,13 @@ impl RustScreenRecorder {
             shape: Some(0),
             vec_shape: Vec::new(),
             color: draw::Rgb::new(0, 0, 0),
-            screens:Vec::new(),
-            window_height:Some(0),
-            window_width:Some(0),
-            border:Some(0),
+            screens: Vec::new(),
+            window_height: Some(0),
+            window_width: Some(0),
+            border: Some(0),
         }
     }
     fn show_menu(&mut self, ctx: &Context) {
-       
-
         self.screens = get_all_display();
         TopBottomPanel::top("top panel").show(ctx, |ui| {
             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
@@ -117,8 +112,9 @@ impl RustScreenRecorder {
                 if ui.button("Selected Screen").clicked() {
                     match self.screen_index {
                         Some(screen_index) => {
-                            self.screenshot =
-                                take_screenshot_display(self.screens[screen_index as usize].clone());
+                            self.screenshot = take_screenshot_display(
+                                self.screens[screen_index as usize].clone(),
+                            );
                             self.image = ctx.load_texture(
                                 "screenshot",
                                 egui::ColorImage::from_rgba_unmultiplied(
@@ -137,7 +133,6 @@ impl RustScreenRecorder {
                 self.select_timer(ui);
 
                 if ui.button("Edit").clicked() {
-                    
                     self.edit = Mood::Edit;
                 }
                 if ui.button("Save").clicked() {
@@ -162,8 +157,7 @@ impl RustScreenRecorder {
     }
     fn show_edit(&mut self, ctx: &Context) {
         TopBottomPanel::top("bottom panel").show(ctx, |ui| {
-            
-            self.border=Some(ui.available_size().y as i32);
+            self.border = Some(ui.available_size().y as i32);
             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                 //self.shape=Some(0);
                 egui::ComboBox::from_label("")
@@ -174,14 +168,19 @@ impl RustScreenRecorder {
                         ui.selectable_value(&mut self.shape, Some(1), "square");
                         ui.selectable_value(&mut self.shape, Some(2), "arrow");
                     });
-                    ui.separator();
-                    ui.add(egui::Slider::new(&mut self.color.red, 0..=255).text("Red"));
-                    ui.add(egui::Slider::new(&mut self.color.green, 0..=255).text("Green"));
-                    ui.add(egui::Slider::new(&mut self.color.blue, 0..=255).text("Blue"));
+                ui.separator();
+                ui.add(egui::Slider::new(&mut self.color.red, 0..=255).text("Red"));
+                ui.add(egui::Slider::new(&mut self.color.green, 0..=255).text("Green"));
+                ui.add(egui::Slider::new(&mut self.color.blue, 0..=255).text("Blue"));
                 if self.shape.unwrap() >= 0 {
-                    draw::create_figure(self.vec_shape.as_mut(), ctx, self.shape.unwrap(), self.color);
+                    draw::create_figure(
+                        self.vec_shape.as_mut(),
+                        ctx,
+                        self.shape.unwrap(),
+                        self.color,
+                    );
                 }
-                
+
                 if ui.button("Text").clicked() {}
                 if ui.button("Cut").clicked() {}
                 if ui.button("Cancel").clicked() {}
@@ -211,8 +210,8 @@ impl RustScreenRecorder {
                         }
                         None => (),
                     }
-                   self.edit = Mood::None;
-                   self.shape=None;
+                    self.edit = Mood::None;
+                    self.shape = None;
                 }
                 if ui.button("Exit").clicked() {
                     self.edit = Mood::None;
@@ -318,24 +317,37 @@ impl RustScreenRecorder {
 
 impl eframe::App for RustScreenRecorder {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-
-
         self.show_menu(ctx);
         egui::CentralPanel::default().show(ctx, |ui| {
-            self.window_width =Some(ui.available_size().x as u32);
+            self.window_width = Some(ui.available_size().x as u32);
             self.window_height = Some(ui.available_size().y as u32);
 
-            ui.horizontal(|ui| {
-                ui.spacing();
-                // println!("{:?}", frame.info().window_info.size);
-                // ui.image((self.image.id(), frame.info().window_info.size));
-                Vec2::new(0.0, 0.0);
-                ui.add(egui::Image::new((
-                    self.image.id(),
-                    Vec2::new(frame.info().window_info.size.x, self.image.size_vec2().y),
-                )));
-                draw::draw(ui, self.vec_shape.as_mut());
-                //self.screenshot.unwrap()
+            ui.vertical_centered(|ui| {
+                // ui.spacing();
+                let available_size = ui.available_size();
+                let image_size = self.image.size_vec2();
+                let aspect_ratio = image_size.x / image_size.y;
+                let (image_width, image_height) =
+                    if available_size.x / aspect_ratio < available_size.y {
+                        (available_size.x, available_size.x / aspect_ratio)
+                    } else {
+                        (available_size.y * aspect_ratio, available_size.y)
+                    };
+                let x_offset = (available_size.x - image_width) / 2.0;
+                let y_offset = (available_size.y - image_height) / 2.0;
+                ui.add(
+                    egui::Image::new((self.image.id(), Vec2::new(image_width, image_height)))
+                        .maintain_aspect_ratio(true)
+                        .fit_to_exact_size(Vec2::new(
+                            frame.info().window_info.size.x,
+                            frame.info().window_info.size.y,
+                        )),
+                )
+                .with_new_rect(egui::Rect::from_min_size(
+                    egui::Pos2::new(x_offset, y_offset),
+                    Vec2::new(image_width, image_height),
+                ));
+                // draw::draw(ui, self.vec_shape.as_mut());
             });
         });
     }
