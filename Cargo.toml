@@ -15,4 +15,5 @@ rfd = "0.12.1"
 arboard = "3.2.1"
 dirs = "5.0.1"
 chrono = "0.4.31"
+egui_plot = "0.23.0"
 
