@@ -14,6 +14,9 @@ use egui::{
     Vec2,
 };
 use image::DynamicImage;
+use self::settings::ImageFormat;
+
+const SIDE_PANEL_WIDTH: f32 = 255.0;
 
 pub fn main_window() -> eframe::Result<()> {
     let window_option = eframe::NativeOptions {
@@ -68,6 +71,10 @@ struct RustScreenRecorder {
     cut: i32,
     pos_start: Pos2,
     pos_mouse: Pos2,
+    window_width: Option<u32>,
+    window_height: Option<u32>,
+    border: Option<i32>,
+    selected_ext: ImageFormat,
 }
 
 impl RustScreenRecorder {
@@ -129,6 +136,10 @@ impl RustScreenRecorder {
             cut: -1,
             pos_start: Pos2::new(0.0, 0.0),
             pos_mouse: Pos2::new(0.0, 0.0),
+            window_height: Some(0),
+            window_width: Some(0),
+            border: Some(0),
+            selected_ext: ImageFormat::Png,
         }
     }
     //main menu
@@ -653,12 +664,22 @@ impl RustScreenRecorder {
                     .on_hover_text("Delay screenshot");
             });
     }
+
+    fn select_save_as_ext(&mut self, ui: &mut Ui) {
+        egui::ComboBox::from_id_source("save_as_ext")
+            .width(80.0)
+            .selected_text(format!("{}", self.selected_ext.get_ext().to_uppercase()))
+            .show_ui(ui, |ui| {
+                ui.selectable_value(&mut self.selected_ext, ImageFormat::Png, "PNG");
+                ui.selectable_value(&mut self.selected_ext, ImageFormat::Jpg, "JPG");
+                ui.selectable_value(&mut self.selected_ext, ImageFormat::Bmp, "BMP");
+                ui.selectable_value(&mut self.selected_ext, ImageFormat::Gif, "GIF");
+            });
+    }
+
     fn save_as_image(&mut self) {
         let path = FileDialog::new()
-            .add_filter("PNG", &["png"])
-            .add_filter("JPG", &["jpg"])
-            .add_filter("GIF", &["gif"])
-            .add_filter("BMP", &["bmp"])
+            .add_filter("Image", &["png", "jpg", "gif", "bmp"])
             .set_directory(self.settings.get_settings().screenshot_path.clone())
             .set_file_name(format!(
                 "screenshot_{}",
@@ -667,7 +688,17 @@ impl RustScreenRecorder {
             .save_file();
         match path {
             Some(path) => {
-                self.screenshot.as_ref().unwrap().save(path).unwrap();
+                let p = PathBuf::from(format!(
+                    "{}.{}",
+                    path.to_string_lossy(),
+                    self.selected_ext.get_ext()
+                ));
+                match self.screenshot.as_ref().unwrap().save(p) {
+                    Ok(_) => {}
+                    Err(e) => {
+                        eprintln!("{}", e)
+                    }
+                }
             }
             None => {}
         }

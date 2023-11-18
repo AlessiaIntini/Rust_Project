@@ -28,6 +28,18 @@ pub struct Settings {
     screenshot_default_ext: ImageFormat,
 }
 
+impl ImageFormat {
+    pub fn get_ext(&self) -> String {
+        match self {
+            ImageFormat::Png => "png",
+            ImageFormat::Jpg => "jpg",
+            ImageFormat::Gif => "gif",
+            ImageFormat::Bmp => "bmp",
+        }
+        .to_string()
+    }
+}
+
 impl Settings {
     fn new() -> Self {
         let mut default_settings: Settings = Self {
@@ -63,13 +75,7 @@ impl Settings {
         default_settings
     }
     pub fn get_screenshot_default_ext(&self) -> String {
-        match self.screenshot_default_ext {
-            ImageFormat::Png => "png",
-            ImageFormat::Jpg => "jpg",
-            ImageFormat::Gif => "gif",
-            ImageFormat::Bmp => "bmp",
-        }
-        .to_string()
+        self.screenshot_default_ext.get_ext()
     }
     fn save(&mut self) {
         let file_settings = self.screenshot_path.clone().join(SETTINGS_FILE);
@@ -152,6 +158,6 @@ impl SettingsHandler {
             });
     }
     pub fn show_window(&mut self) {
-        return self.show_window = true;
+        self.show_window = true;
     }
 }
