@@ -4,9 +4,10 @@ use crate::utility::screenshots::{
     get_all_display, take_screenshot_all_displays, take_screenshot_area, take_screenshot_display,
 };
 use arboard::Clipboard;
-use egui_plot::{Legend, Line, Plot, PlotPoints};
 use eframe::egui;
-use egui::{Align, Context, Layout, TextureHandle, TopBottomPanel, Ui, Vec2, Rect, ColorImage};
+use eframe::egui::ColorImage;
+use egui::{Align, Context, Layout, Rect, TextureHandle, TopBottomPanel, Ui, Vec2};
+use egui_plot::{Legend, Line, Plot, PlotPoints};
 use image::DynamicImage;
 use rfd::FileDialog;
 
@@ -39,10 +40,11 @@ struct RustScreenRecorder {
     vec_shape: Vec<draw::Shape>,
     color: draw::Rgb,
     screens: Vec<screenshots::Screen>,
-    window_size:Vec2<>,
+    window_size: Vec2,
     border: Option<i32>,
-    i_size:Vec2<>,
-    image_width:f32,
+    image_size: Vec2,
+    image_width: f32,
+    imag_s:Vec2,
 }
 
 impl RustScreenRecorder {
@@ -80,13 +82,15 @@ impl RustScreenRecorder {
             vec_shape: Vec::new(),
             color: draw::Rgb::new(0, 0, 0),
             screens: Vec::new(),
-            window_size:Vec2::new(0.0,0.0),
+            window_size: Vec2::new(0.0, 0.0),
             border: Some(0),
-            i_size:Vec2::new(0.0,0.0),
-            image_width:0.0,
+            image_size: Vec2::new(0.0, 0.0),
+            image_width: 0.0,
+            imag_s:Vec2::new(0.0, 0.0),
+        
         }
     }
-    fn show_menu(&mut self, ctx: &Context,frame: &mut eframe::Frame) {
+    fn show_menu(&mut self, ctx: &Context, frame: &mut eframe::Frame) {
         self.screens = get_all_display();
         TopBottomPanel::top("top panel").show(ctx, |ui| {
             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
@@ -96,15 +100,15 @@ impl RustScreenRecorder {
                             self.timer.unwrap() as u64
                         ));
                     }
-                    let screenshot = take_screenshot_all_displays();
+                    self.screenshot = take_screenshot_all_displays();
                     self.image = ctx.load_texture(
                         "screenshot",
                         egui::ColorImage::from_rgba_unmultiplied(
                             [
-                                screenshot.as_ref().unwrap().width() as usize,
-                                screenshot.as_ref().unwrap().height() as usize,
+                                self.screenshot.as_ref().unwrap().width() as usize,
+                                self.screenshot.as_ref().unwrap().height() as usize,
                             ],
-                            screenshot.as_ref().unwrap().as_bytes(),
+                            self.screenshot.as_ref().unwrap().as_bytes(),
                         ),
                         Default::default(),
                     );
@@ -185,12 +189,13 @@ impl RustScreenRecorder {
                 }
                 self.select_monitor(ui);
             });
+
+            if self.edit == Mood::Edit {
+                self.show_edit(ctx, frame);
+            }
         });
-        if self.edit == Mood::Edit {
-            self.show_edit(ctx,frame);
-        }
     }
-    fn show_edit(&mut self, ctx: &Context,frame: &mut eframe::Frame) {
+    fn show_edit(&mut self, ctx: &Context, frame: &mut eframe::Frame) {
         TopBottomPanel::top("bottom panel").show(ctx, |ui| {
             self.border = Some(ui.available_size().y as i32);
             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
@@ -213,8 +218,8 @@ impl RustScreenRecorder {
                         ctx,
                         self.shape.unwrap(),
                         self.color,
-                        self.i_size.x,
-                        self.i_size.y,
+                        self.image_size.x,
+                        self.image_size.y,
                         self.image_width,
                     );
                 }
@@ -223,40 +228,26 @@ impl RustScreenRecorder {
                 if ui.button("Cut").clicked() {}
                 if ui.button("Cancel").clicked() {}
                 if ui.button("Back").clicked() {}
-                //let mut plot_rect:Option<Rect>=None;
-                
+
                 if ui.button("Save").clicked() {
-                  //  frame.request_screenshot();
+                    self.screenshot=take_screenshot_area(self.screens[self.screen_index.unwrap() as usize].clone(), 0, 100, self.imag_s.x as u32, self.imag_s.y as u32);
+                    self.image = ctx.load_texture(
+                        "screenshot",
+                        egui::ColorImage::from_rgba_unmultiplied(
+                            [
+                                self.screenshot.as_ref().unwrap().width() as usize,
+                                self.screenshot.as_ref().unwrap().height() as usize,
+                            ],
+                            self.screenshot.as_ref().unwrap().as_bytes(),
+                        ),
+                        Default::default(),
+                    );
                     self.edit = Mood::None;
                     self.shape = None;
+                   
+                    
+                    
                 }
-                // let my_plot = Plot::new("My Plot").legend(Legend::default());
-                // let graph: Vec<[f64; 2]> = vec![[0.0, 1.0], [2.0, 3.0], [3.0, 2.0]];
-                // let inner = my_plot.show(ui, |plot_ui| {
-                //     plot_ui.line(Line::new(PlotPoints::from(graph)).name("curve"));
-                // });
-                // plot_rect = Some(inner.response.rect);
-                // if let (Some(screenshots), Some(plot_location)) = (self.screenshot.take(), plot_rect) {
-                //     if let Some(mut path) = rfd::FileDialog::new().save_file() {
-                //         path.set_extension("png");
-        
-                //         // for a full size application, we should put this in a different thread,
-                //         // so that the GUI doesn't lag during saving
-        
-                //         let pixels_per_point = frame.info().native_pixels_per_point;
-                //         let plot = screenshots//.region(&plot_location, pixels_per_point);
-                //         // save the plot to png
-                //         image::save_buffer(
-                //             &path,
-                //             plot.as_raw(),
-                //             plot.width() as u32,
-                //             plot.height() as u32,
-                //             image::ColorType::Rgba8,
-                //         )
-                //         .unwrap();
-                //     }
-                // }
-
 
                 if ui.button("Exit").clicked() {
                     self.edit = Mood::None;
@@ -353,14 +344,17 @@ impl RustScreenRecorder {
 
 impl eframe::App for RustScreenRecorder {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        self.show_menu(ctx,frame);
+        self.show_menu(ctx, frame);
         egui::CentralPanel::default().show(ctx, |ui| {
-            self.window_size =Vec2::new(frame.info().window_info.size.x, frame.info().window_info.size.y);
+            self.window_size = Vec2::new(
+                frame.info().window_info.size.x,
+                frame.info().window_info.size.y,
+            );
             ui.vertical_centered(|ui| {
                 // ui.spacing();
                 let available_size = ui.available_size();
                 let image_size = self.image.size_vec2();
-              
+
                 let aspect_ratio = image_size.x / image_size.y;
                 let (image_width, image_height) =
                     if available_size.x / aspect_ratio < available_size.y {
@@ -370,9 +364,12 @@ impl eframe::App for RustScreenRecorder {
                     };
                 let x_offset = (available_size.x - image_width) / 2.0;
                 let y_offset = (available_size.y - image_height) / 2.0;
-                
-                self.i_size=Vec2::new(self.window_size.x-image_width,self.window_size.y-image_height);
-                self.image_width=image_width;
+                self.imag_s=image_size;
+                self.image_size = Vec2::new(
+                    self.window_size.x - image_width,
+                    self.window_size.y - image_height,
+                );
+                self.image_width = image_width;
                 ui.add(
                     egui::Image::new((self.image.id(), Vec2::new(image_width, image_height)))
                         .maintain_aspect_ratio(true)
