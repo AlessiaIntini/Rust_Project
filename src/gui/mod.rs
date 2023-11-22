@@ -41,10 +41,9 @@ struct RustScreenRecorder {
     color: draw::Rgb,
     screens: Vec<screenshots::Screen>,
     window_size: Vec2,
-    border: Option<i32>,
-    image_size: Vec2,
-    image_width: f32,
-    imag_s:Vec2,
+    border_size: Vec2,
+    image_size:Vec2,
+
 }
 
 impl RustScreenRecorder {
@@ -83,10 +82,8 @@ impl RustScreenRecorder {
             color: draw::Rgb::new(0, 0, 0),
             screens: Vec::new(),
             window_size: Vec2::new(0.0, 0.0),
-            border: Some(0),
-            image_size: Vec2::new(0.0, 0.0),
-            image_width: 0.0,
-            imag_s:Vec2::new(0.0, 0.0),
+            border_size: Vec2::new(0.0, 0.0),
+            image_size:Vec2::new(0.0, 0.0),
         
         }
     }
@@ -197,7 +194,7 @@ impl RustScreenRecorder {
     }
     fn show_edit(&mut self, ctx: &Context, frame: &mut eframe::Frame) {
         TopBottomPanel::top("bottom panel").show(ctx, |ui| {
-            self.border = Some(ui.available_size().y as i32);
+           
             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                 //self.shape=Some(0);
                 egui::ComboBox::from_label("")
@@ -218,9 +215,10 @@ impl RustScreenRecorder {
                         ctx,
                         self.shape.unwrap(),
                         self.color,
+                        self.border_size.x,
+                        self.border_size.y,
                         self.image_size.x,
                         self.image_size.y,
-                        self.image_width,
                     );
                 }
 
@@ -230,7 +228,10 @@ impl RustScreenRecorder {
                 if ui.button("Back").clicked() {}
 
                 if ui.button("Save").clicked() {
-                    self.screenshot=take_screenshot_area(self.screens[self.screen_index.unwrap() as usize].clone(), 0, 100, self.imag_s.x as u32, self.imag_s.y as u32);
+                    let origin=Vec2::new((self.border_size.x/2.0)+18.0,self.border_size.y+60.0);
+                    let image_width=self.image_size.x+60.0;
+                    let image_hight=self.image_size.y+20.0;
+                    self.screenshot=take_screenshot_area(self.screens[self.screen_index.unwrap() as usize].clone(),origin.x as i32, origin.y as i32, image_width as u32, image_hight as u32);
                     self.image = ctx.load_texture(
                         "screenshot",
                         egui::ColorImage::from_rgba_unmultiplied(
@@ -244,7 +245,7 @@ impl RustScreenRecorder {
                     );
                     self.edit = Mood::None;
                     self.shape = None;
-                   
+                    self.vec_shape=Vec::new();
                     
                     
                 }
@@ -353,7 +354,7 @@ impl eframe::App for RustScreenRecorder {
             ui.vertical_centered(|ui| {
                 // ui.spacing();
                 let available_size = ui.available_size();
-                let image_size = self.image.size_vec2();
+                let image_size= self.image.size_vec2();
 
                 let aspect_ratio = image_size.x / image_size.y;
                 let (image_width, image_height) =
@@ -364,12 +365,13 @@ impl eframe::App for RustScreenRecorder {
                     };
                 let x_offset = (available_size.x - image_width) / 2.0;
                 let y_offset = (available_size.y - image_height) / 2.0;
-                self.imag_s=image_size;
-                self.image_size = Vec2::new(
+               
+                self.border_size= Vec2::new(
                     self.window_size.x - image_width,
                     self.window_size.y - image_height,
                 );
-                self.image_width = image_width;
+                self.image_size.x = image_width;
+                self.image_size.y=image_height;
                 ui.add(
                     egui::Image::new((self.image.id(), Vec2::new(image_width, image_height)))
                         .maintain_aspect_ratio(true)

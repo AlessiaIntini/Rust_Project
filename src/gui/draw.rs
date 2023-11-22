@@ -28,14 +28,15 @@ impl Rgb{
     }
 }
 
-pub fn create_figure(vec_shape: &mut Vec<Shape>, ctx: &egui::Context, shape: i32, color: Rgb,x:f32,y:f32,image_size:f32){
+pub fn create_figure(vec_shape: &mut Vec<Shape>, ctx: &egui::Context, shape: i32, color: Rgb,x:f32,y:f32,image_width:f32,image_hight:f32){
     if ctx.input(|i| i.pointer.button_clicked(PointerButton::Primary)){
         let pos_mouse = ctx.input(|i| i.pointer.hover_pos().unwrap());
        
-        let x1=x/2.0;
-        let x2=(x/2.0)+image_size;
+        let x1=(x/2.0)-18.0;
+        let x2=((x/2.0)+image_width)+18.0;
+        let y2=image_hight+23.0;
        
-        if pos_mouse.y>y && pos_mouse.x>x1 && pos_mouse.x<x2 {
+        if pos_mouse.y>y && pos_mouse.y<y2 && pos_mouse.x>x1 && pos_mouse.x<x2 {
         match shape {
             0=> {    
                     let circle = epaint::CircleShape{
