@@ -6,10 +6,12 @@ use crate::utility::screenshots::{
 use arboard::Clipboard;
 use eframe::egui;
 use eframe::egui::ColorImage;
-use egui::{Align, Context, Layout, Rect, TextureHandle, TopBottomPanel, Ui, Vec2};
+use egui::{Align, Context, Layout, Rect, TextureHandle, TopBottomPanel, Ui, Vec2, FontFamily};
 use egui_plot::{Legend, Line, Plot, PlotPoints};
 use image::DynamicImage;
 use rfd::FileDialog;
+
+use self::draw::ProperDraw;
 
 pub fn main_window() -> eframe::Result<()> {
     let window_option = eframe::NativeOptions {
@@ -29,26 +31,25 @@ enum Mood {
     Edit,
     None,
 }
-enum NameShape{
-    Cicle=0,
-    Square=1,
-    Arrow=2,
-}
+
 struct RustScreenRecorder {
     screen_index: Option<u8>,
     image: TextureHandle,
     timer: Option<i64>,
     screenshot: Option<DynamicImage>,
     path: Option<PathBuf>,
-    edit: Mood,
-    shape: Option<i32>, // ctx: Context,
+    edit: Mood, 
     vec_shape: Vec<draw::Shape>,
-    color: draw::Rgb,
+    property:ProperDraw,
+    font:FontFamily,
+    draw_dim_variable:i32,
+    text:String,
     screens: Vec<screenshots::Screen>,
     window_size: Vec2,
     border_size: Vec2,
     image_size: Vec2,
     draw_shape: bool,
+    flag:i32,
 }
 
 impl RustScreenRecorder {
@@ -82,14 +83,23 @@ impl RustScreenRecorder {
             screenshot: Some(screenshot),
             path: Some(pic_dir),
             edit: Mood::None,
-            shape: Some(0),
             vec_shape: Vec::new(),
-            color: draw::Rgb::new(0, 0, 0),
             screens: Vec::new(),
             window_size: Vec2::new(0.0, 0.0),
             border_size: Vec2::new(0.0, 0.0),
             image_size: Vec2::new(0.0, 0.0),
             draw_shape: false,
+            flag:0,
+            text:"".to_string(),
+            font:FontFamily::Monospace,
+            property:ProperDraw::new(
+                Some(-1),
+                draw::Rgb::new(0, 0, 0),
+                false,
+                draw::Rgb::new(0, 0, 0),
+                1.0,
+            ),
+            draw_dim_variable:0,
         }
     }
     fn show_menu(&mut self, ctx: &Context, frame: &mut eframe::Frame) {
@@ -175,6 +185,10 @@ impl RustScreenRecorder {
 
                 if ui.button("Edit").clicked() {
                     self.edit = Mood::Edit;
+                    if self.flag==0{
+                        self.flag=1;
+                        self.property.draw=Some(0);
+                    }
                 }
                 if ui.button("Save").clicked() {
                     self.save_image();
@@ -193,6 +207,7 @@ impl RustScreenRecorder {
             });
 
             if self.edit == Mood::Edit {
+               // self.shape=Some(0);
                 self.show_edit(ctx, frame);
             }
         });
@@ -200,12 +215,12 @@ impl RustScreenRecorder {
     fn show_edit(&mut self, ctx: &Context, frame: &mut eframe::Frame) {
         TopBottomPanel::top("bottom panel").show(ctx, |ui| {
             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
-                //self.shape=Some(0);
+                
                 if ui.button("Shape").clicked() {
                     self.draw_shape = true;
                 }
                 let mut first="";
-                match self.shape.unwrap(){
+                match self.property.draw.unwrap(){
                     0=>first="Cicle",
                     1=>first="Square",
                     2=>first="Arrow",
@@ -217,21 +232,23 @@ impl RustScreenRecorder {
                         .width(80.0)
                         .selected_text(first.to_string())
                         .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut self.shape, Some(0), "cicle");
-                            ui.selectable_value(&mut self.shape, Some(1), "square");
-                            ui.selectable_value(&mut self.shape, Some(2), "arrow");
+                            ui.selectable_value(&mut self.property.draw, Some(0), "cicle");
+                            ui.selectable_value(&mut self.property.draw, Some(1), "square");
+                            ui.selectable_value(&mut self.property.draw, Some(2), "arrow");
                         });
                     ui.separator();
-                    ui.add(egui::Slider::new(&mut self.color.red, 0..=255).text("Red"));
-                    ui.add(egui::Slider::new(&mut self.color.green, 0..=255).text("Green"));
-                    ui.add(egui::Slider::new(&mut self.color.blue, 0..=255).text("Blue"));
+                    ui.add(egui::Slider::new(&mut self.property.color.red, 0..=255).text("Red"));
+                    ui.add(egui::Slider::new(&mut self.property.color.green, 0..=255).text("Green"));
+                    ui.add(egui::Slider::new(&mut self.property.color.blue, 0..=255).text("Blue"));
 
-                    if self.shape.unwrap() >= 0 {
+                    if self.property.draw.unwrap() >= 0 {
                         draw::create_figure(
                             self.vec_shape.as_mut(),
                             ctx,
-                            self.shape.unwrap(),
-                            self.color,
+                            self.property,
+                            self.text.to_string(),
+                            &mut self.draw_dim_variable,
+                            self.font.clone(),
                             self.border_size.x,
                             self.border_size.y,
                             self.image_size.x,
@@ -254,6 +271,7 @@ impl RustScreenRecorder {
                 }
 
                 if ui.button("Save").clicked() {
+                    self.flag=0;
                     self.draw_shape = false;
                     let origin =
                         Vec2::new((self.border_size.x / 2.0) + 18.0, self.border_size.y + 60.0);
@@ -278,13 +296,15 @@ impl RustScreenRecorder {
                         Default::default(),
                     );
                     self.edit = Mood::None;
-                    self.shape = None;
+                    self.property.draw = None;
                     self.vec_shape = Vec::new();
                 }
 
                 if ui.button("Exit").clicked() {
                     self.draw_shape = false;
                     self.edit = Mood::None;
+                    self.vec_shape = Vec::new();
+                    self.flag=0;
                 }
             });
         });
