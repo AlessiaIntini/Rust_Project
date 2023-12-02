@@ -117,12 +117,14 @@ pub fn create_figure(vec_shape: &mut Vec<Shape>, ctx: &egui::Context, property: 
         if property.filled {
             fill = property.color_fill.convert_in_color_32();
         }
-        let x1=(x/2.0)-18.0;
-        let x2=((x/2.0)+image_width)+18.0;
-        let y2=image_hight+23.0;
-        if pos_mouse.y>y && pos_mouse.y<y2 && pos_mouse.x>x1 && pos_mouse.x<x2 {
+        let x1=(x/2.0)-31.0;
+        let x2=((x/2.0)+image_width)+31.0;
+        let y1 = y-8.0;
+        let y2=image_hight+39.0;
+        if pos_start.y>y1 && pos_start.y<y2 && pos_start.x>x1 && pos_start.x<x2 && pos_mouse.y>y && pos_mouse.y<y2 && pos_mouse.x>x1 && pos_mouse.x<x2 {
             match property.draw.unwrap() {
-                0=> {    
+                0=> {   
+                        if check_valid_circle(pos_start, pos_mouse, x1, y1, x2, y2) {
                         let circle = epaint::CircleShape{
                             center: pos_start,
                             radius: distance_between_two_points(pos_start, pos_mouse),
@@ -141,6 +143,7 @@ pub fn create_figure(vec_shape: &mut Vec<Shape>, ctx: &egui::Context, property: 
                         if ctx.input(|i| i.key_pressed(Key::Enter)){
                             *draw_dim_variable = 0;        
                         }
+                    }
                 }
                 1=> {
                         let rectangle = epaint::RectShape::new(
@@ -264,4 +267,13 @@ fn distance_between_two_points(p1: Pos2, p2: Pos2) -> f32 {
     let distance = ((p1.x - p2.x).powi(2) + (p1.y - p2.y).powi(2)).sqrt();
     return distance;
 
+}
+
+fn check_valid_circle(pos_start: Pos2, pos_mouse: Pos2, x1: f32, y1: f32, x2: f32, y2:f32) -> bool {
+    let ray = distance_between_two_points(pos_start, pos_mouse);
+    if pos_start.x - ray < x1  {return false;}
+    else if pos_start.y - ray < y1  {return false;}
+    else if pos_start.x + ray > x2 {return false;}
+    else if pos_start.y + ray > y2 {return false;} 
+    return true;
 }
