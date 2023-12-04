@@ -124,7 +124,7 @@ pub fn create_figure(vec_shape: &mut Vec<Shape>, ctx: &egui::Context, property: 
         if pos_start.y>y1 && pos_start.y<y2 && pos_start.x>x1 && pos_start.x<x2 && pos_mouse.y>y && pos_mouse.y<y2 && pos_mouse.x>x1 && pos_mouse.x<x2 {
             match property.draw.unwrap() {
                 0=> {   
-                        if check_valid_circle(pos_start, pos_mouse, x1, y1, x2, y2) {
+                        if check_valid_circle(pos_start, pos_mouse, x1, y1, x2, y2, property.width) {
                         let circle = epaint::CircleShape{
                             center: pos_start,
                             radius: distance_between_two_points(pos_start, pos_mouse),
@@ -269,11 +269,11 @@ fn distance_between_two_points(p1: Pos2, p2: Pos2) -> f32 {
 
 }
 
-fn check_valid_circle(pos_start: Pos2, pos_mouse: Pos2, x1: f32, y1: f32, x2: f32, y2:f32) -> bool {
+fn check_valid_circle(pos_start: Pos2, pos_mouse: Pos2, x1: f32, y1: f32, x2: f32, y2:f32, width: f32) -> bool {
     let ray = distance_between_two_points(pos_start, pos_mouse);
-    if pos_start.x - ray < x1  {return false;}
-    else if pos_start.y - ray < y1  {return false;}
-    else if pos_start.x + ray > x2 {return false;}
-    else if pos_start.y + ray > y2 {return false;} 
+    if pos_start.x - ray - width/2. < x1  {return false;}
+    else if pos_start.y - ray - width/2. < y1  {return false;}
+    else if pos_start.x + ray + width/2. > x2 {return false;}
+    else if pos_start.y + ray + width/2. > y2 {return false;} 
     return true;
 }
