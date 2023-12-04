@@ -5,7 +5,7 @@ use crate::utility::screenshots::{
 };
 use arboard::Clipboard;
 use eframe::egui;
-use egui::{Align, Context, FontFamily, Layout, TextureHandle, TopBottomPanel, Ui, Vec2, Color32};
+use egui::{Align, Color32, Context, FontFamily, Layout, TextureHandle, TopBottomPanel, Ui, Vec2};
 use image::DynamicImage;
 use rfd::FileDialog;
 
@@ -30,6 +30,13 @@ enum Mood {
     Edit,
     None,
 }
+#[derive(PartialEq, Eq, Debug)]
+enum TypeEdit {
+    Shape,
+    Draw,
+    Text,
+    None,
+}
 
 struct RustScreenRecorder {
     screen_index: Option<u8>,
@@ -37,7 +44,8 @@ struct RustScreenRecorder {
     timer: Option<i64>,
     screenshot: Option<DynamicImage>,
     path: Option<PathBuf>,
-    edit: Mood,
+    edit: Mood,       // se è in fase di modifica
+    type_e: TypeEdit, //per il tipo di edit che c'è
     vec_shape: Vec<draw::Shape>,
     property: ProperDraw,
     font: FontFamily,
@@ -50,7 +58,7 @@ struct RustScreenRecorder {
     draw_shape: bool,
     draw_draw: bool,
     flag: i32,
-    filled: bool,
+    draw_text: bool,
 }
 
 impl RustScreenRecorder {
@@ -84,6 +92,7 @@ impl RustScreenRecorder {
             screenshot: Some(screenshot),
             path: Some(pic_dir),
             edit: Mood::None,
+            type_e: TypeEdit::None,
             vec_shape: Vec::new(),
             screens: Vec::new(),
             window_size: Vec2::new(0.0, 0.0),
@@ -102,7 +111,7 @@ impl RustScreenRecorder {
             ),
             draw_dim_variable: 0,
             draw_draw: false,
-            filled: false,
+            draw_text: false,
         }
     }
     fn show_menu(&mut self, ctx: &Context, frame: &mut eframe::Frame) {
@@ -210,11 +219,8 @@ impl RustScreenRecorder {
             });
 
             if self.edit == Mood::Edit {
-                // self.shape=Some(0);
-               
-                    self.show_edit(ctx, frame);
-                   
-                
+                //self.type_e = TypeEdit::None;
+                self.show_edit(ctx, frame);
             }
         });
     }
@@ -224,58 +230,73 @@ impl RustScreenRecorder {
                 if ui.button("Shape").clicked() {
                     self.draw_shape = true;
                     self.draw_draw = false;
+                    self.draw_text = false;
+                    self.type_e = TypeEdit::Shape;
+                    self.property.draw=Some(0);
                 }
-                let mut first = "";
-                match self.property.draw.unwrap() {
-                    0 => first = "Cicle",
-                    1 => first = "Square",
-                    2 => first = "Arrow",
-                    _ => (),
-                }
-                if self.draw_shape {
-                    self.show_shape(ctx, frame, first, ui);
-                }
+
+                // if self.draw_shape {
+                //     self.show_shape(ctx, frame, &"circle", ui);
+                // }
                 if ui.button("Draw").clicked() {
+                    self.type_e = TypeEdit::Draw;
                     self.draw_draw = true;
                     self.draw_shape = false;
+                    self.draw_text = false;
                 }
-                if self.draw_draw == true {
-                    self.draw_shape = false;
-                    self.property.draw = Some(4);
-                    
-                    ui.add(egui::Slider::new(&mut self.property.color.red, 0..=255).text("Red"));
-                    ui.add(egui::Slider::new(&mut self.property.color.green, 0..=255).text("Green"));
-                    ui.add(egui::Slider::new(&mut self.property.color.blue, 0..=255).text("Blue"));
-                    egui::widgets::color_picker::show_color(ui,Color32::from_rgb(self.property.color.red,self.property.color.green,self.property.color.blue),Vec2::new(18.0,18.0));
+                // if self.draw_draw == true {
+                //     self.draw_shape = false;
+                //     self.property.draw = Some(4);
+                //     egui::widgets::color_picker::show_color(
+                //         ui,
+                //         Color32::from_rgb(
+                //             self.property.color.red,
+                //             self.property.color.green,
+                //             self.property.color.blue,
+                //         ),
+                //         Vec2::new(18.0, 18.0),
+                //     );
+                //     ui.add(egui::Slider::new(&mut self.property.color.red, 0..=255).text("Red"));
+                //     ui.add(
+                //         egui::Slider::new(&mut self.property.color.green, 0..=255).text("Green"),
+                //     );
+                //     ui.add(egui::Slider::new(&mut self.property.color.blue, 0..=255).text("Blue"));
 
-                    ui.separator();
-                    ui.add(egui::Slider::new(&mut self.property.width, 0.0..=50.).text("Width"));
-                    
-                  
-                    draw::create_figure(
-                        self.vec_shape.as_mut(),
-                        ctx,
-                        self.property,
-                        self.text.to_string(),
-                        &mut self.draw_dim_variable,
-                        self.font.clone(),
-                        self.border_size.x,
-                        self.border_size.y,
-                        self.image_size.x,
-                        self.image_size.y,
-                    );
-                }
+                //     ui.separator();
+                //     ui.add(egui::Slider::new(&mut self.property.width, 0.0..=50.).text("Width"));
+
+                //     draw::create_figure(
+                //         self.vec_shape.as_mut(),
+                //         ctx,
+                //         self.property,
+                //         self.text.to_string(),
+                //         &mut self.draw_dim_variable,
+                //         self.font.clone(),
+                //         self.border_size.x,
+                //         self.border_size.y,
+                //         self.image_size.x,
+                //         self.image_size.y,
+                //     );
+                // }
                 if ui.button("Text").clicked() {
                     self.draw_shape = false;
                     self.draw_draw = false;
+                    self.property.draw = Some(3);
+                    self.draw_text = true;
+                    self.type_e = TypeEdit::Text;
                 }
+                // if self.draw_text {
+                //     ui.text_edit_multiline(&mut self.text);
+                // }
                 if ui.button("Cut").clicked() {
                     self.draw_shape = false;
                     self.draw_draw = false;
+                    self.draw_text = false;
                 }
                 if ui.button("Cancel").clicked() {
                     self.draw_shape = false;
                     self.draw_draw = false;
+                    self.draw_text = false;
                 }
                 if ui.button("Back").clicked() {
                     self.vec_shape.pop();
@@ -284,6 +305,8 @@ impl RustScreenRecorder {
                 if ui.button("Save").clicked() {
                     self.flag = 0;
                     self.draw_shape = false;
+                    self.draw_text = false;
+                    self.draw_draw = false;
                     let origin =
                         Vec2::new((self.border_size.x / 2.0) + 18.0, self.border_size.y + 60.0);
                     let image_width = self.image_size.x + 60.0;
@@ -313,65 +336,160 @@ impl RustScreenRecorder {
 
                 if ui.button("Exit").clicked() {
                     self.draw_shape = false;
+                    self.draw_draw = false;
+                    self.draw_text = false;
                     self.edit = Mood::None;
                     self.vec_shape = Vec::new();
                     self.flag = 0;
+                    self.type_e = TypeEdit::None;
                 }
             });
+            match self.type_e {
+                TypeEdit::Shape => {
+                    let mut first = "";
+                    match self.property.draw.unwrap() {
+                        0 => first = "Cicle",
+                        1 => first = "Square",
+                        2 => first = "Arrow",
+                        _ => (),
+                    }
+                    self.show_shape(ctx, frame, first, ui);
+                }
+                TypeEdit::Draw => {
+                   self.show_draw(ctx, frame, ui);
+                }
+                TypeEdit::Text => {
+                    TopBottomPanel::top("4bottom panel").show(ctx, |ui| {
+                        ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
+                    ui.text_edit_multiline(&mut self.text);
+                    ui.separator();
+                    ui.add(egui::Slider::new(&mut self.property.width, 0.0..=50.).text("Width"));
+                    if ui.button("Exit").clicked() {
+                        self.type_e = TypeEdit::None;
+                    }
+                });
+            });
+                }
+                TypeEdit::None => {}
+            }
         });
     }
-    fn show_shape(&mut self, ctx: &Context, frame: &mut eframe::Frame, first: &str, ui: &mut Ui) {
-       
-          
-        egui::ComboBox::from_label("")
-            .width(80.0)
-            .selected_text(first.to_string())
-            .show_ui(ui, |ui| {
-                ui.selectable_value(&mut self.property.draw, Some(0), "cicle");
-                ui.selectable_value(&mut self.property.draw, Some(1), "square");
-                ui.selectable_value(&mut self.property.draw, Some(2), "arrow");
-            });
-        ui.separator();
-        ui.add(egui::Slider::new(&mut self.property.color.red, 0..=255).text("Red"));
-        ui.add(egui::Slider::new(&mut self.property.color.green, 0..=255).text("Green"));
-        ui.add(egui::Slider::new(&mut self.property.color.blue, 0..=255).text("Blue"));
-        egui::widgets::color_picker::show_color(ui,Color32::from_rgb(self.property.color.red,self.property.color.green,self.property.color.blue),Vec2::new(18.0,18.0));
-        ui.separator();
-        ui.add(egui::Slider::new(&mut self.property.width, 0.0..=50.).text("Width"));
 
-        if ui.checkbox(&mut self.property.filled, "Fill").clicked() {
-            self.property.filled = self.property.filled;
-        }
-        if self.property.filled {
-               ui.add(
-                        egui::Slider::new(&mut self.property.color_fill.red, 0..=255)
-                            .text("Red"),
+    fn show_shape(&mut self, ctx: &Context, frame: &mut eframe::Frame, first: &str, ui: &mut Ui) {
+        TopBottomPanel::top("2bottom panel").show(ctx, |ui| {
+            ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
+                egui::ComboBox::from_label("")
+                    .width(80.0)
+                    .selected_text(first.to_string())
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut self.property.draw, Some(0), "cicle");
+                        ui.selectable_value(&mut self.property.draw, Some(1), "square");
+                        ui.selectable_value(&mut self.property.draw, Some(2), "arrow");
+                    });
+                ui.separator();
+                egui::widgets::color_picker::show_color(
+                    ui,
+                    Color32::from_rgb(
+                        self.property.color.red,
+                        self.property.color.green,
+                        self.property.color.blue,
+                    ),
+                    Vec2::new(18.0, 18.0),
+                );
+                ui.add(egui::Slider::new(&mut self.property.color.red, 0..=255).text("Red"));
+                ui.add(egui::Slider::new(&mut self.property.color.green, 0..=255).text("Green"));
+                ui.add(egui::Slider::new(&mut self.property.color.blue, 0..=255).text("Blue"));
+
+                ui.separator();
+                ui.add(egui::Slider::new(&mut self.property.width, 0.0..=50.).text("Width"));
+
+                if ui.checkbox(&mut self.property.filled, "Fill").clicked() {
+                    self.property.filled = self.property.filled;
+                }
+                if self.property.filled {
+                    TopBottomPanel::top("6bottom panel").show(ctx, |ui| {
+                    ui.with_layout(Layout::from_main_dir_and_cross_align(egui::Direction::TopDown,Align::Center), |ui| {
+                    egui::widgets::color_picker::show_color(
+                        ui,
+                        Color32::from_rgb(
+                            self.property.color_fill.red,
+                            self.property.color_fill.green,
+                            self.property.color_fill.blue,
+                        ),
+                        Vec2::new(18.0, 18.0),
+                    );
+                    ui.add(
+                        egui::Slider::new(&mut self.property.color_fill.red, 0..=255).text("Red"),
                     );
                     ui.add(
                         egui::Slider::new(&mut self.property.color_fill.green, 0..=255)
                             .text("Green"),
                     );
                     ui.add(
-                        egui::Slider::new(&mut self.property.color_fill.blue, 0..=255)
-                            .text("Blue"),
-                    );      
-                    egui::widgets::color_picker::show_color(ui,Color32::from_rgb(self.property.color_fill.green,self.property.color_fill.red,self.property.color_fill.blue),Vec2::new(18.0,18.0)); 
-        }
-        if self.property.draw.unwrap() >= 0 {
-            draw::create_figure(
-                self.vec_shape.as_mut(),
-                ctx,
-                self.property,
-                self.text.to_string(),
-                &mut self.draw_dim_variable,
-                self.font.clone(),
-                self.border_size.x,
-                self.border_size.y,
-                self.image_size.x,
-                self.image_size.y,
-            );
-        }
+                        egui::Slider::new(&mut self.property.color_fill.blue, 0..=255).text("Blue"),
+                    );
+                });
+            });
+                }
+                if ui.button("Exit").clicked() {
+                    self.type_e = TypeEdit::None;
+                }
+                if self.property.draw.unwrap() >= 0 {
+                    draw::create_figure(
+                        self.vec_shape.as_mut(),
+                        ctx,
+                        self.property,
+                        self.text.to_string(),
+                        &mut self.draw_dim_variable,
+                        self.font.clone(),
+                        self.border_size.x,
+                        self.border_size.y,
+                        self.image_size.x,
+                        self.image_size.y,
+                    );
+                }
+            });
+        });
+    }
+    fn show_draw(&mut self, ctx: &Context, frame: &mut eframe::Frame, ui: &mut Ui) {
+        TopBottomPanel::top("3bottom panel").show(ctx, |ui| {
+            ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
+                self.property.draw = Some(4);
+                egui::widgets::color_picker::show_color(
+                    ui,
+                    Color32::from_rgb(
+                        self.property.color.red,
+                        self.property.color.green,
+                        self.property.color.blue,
+                    ),
+                    Vec2::new(18.0, 18.0),
+                );
+                ui.add(egui::Slider::new(&mut self.property.color.red, 0..=255).text("Red"));
+                ui.add(
+                    egui::Slider::new(&mut self.property.color.green, 0..=255).text("Green"),
+                );
+                ui.add(egui::Slider::new(&mut self.property.color.blue, 0..=255).text("Blue"));
 
+                ui.separator();
+                ui.add(egui::Slider::new(&mut self.property.width, 0.0..=50.).text("Width"));
+
+                if ui.button("Exit").clicked() {
+                    self.type_e = TypeEdit::None;
+                }
+                draw::create_figure(
+                    self.vec_shape.as_mut(),
+                    ctx,
+                    self.property,
+                    self.text.to_string(),
+                    &mut self.draw_dim_variable,
+                    self.font.clone(),
+                    self.border_size.x,
+                    self.border_size.y,
+                    self.image_size.x,
+                    self.image_size.y,
+                );
+            });
+        });
     }
     fn select_monitor(&mut self, ui: &mut Ui) {
         let screens = get_all_display();
@@ -462,6 +580,7 @@ impl RustScreenRecorder {
 impl eframe::App for RustScreenRecorder {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         self.show_menu(ctx, frame);
+        //egui::CentralPanel::frame(self, frame)
         egui::CentralPanel::default().show(ctx, |ui| {
             self.window_size = Vec2::new(
                 frame.info().window_info.size.x,
