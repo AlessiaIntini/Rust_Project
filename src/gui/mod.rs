@@ -1,11 +1,14 @@
-use std::{borrow::Cow, path::PathBuf};
+use std::{borrow::Cow, default, path::PathBuf};
 mod draw;
 use crate::utility::screenshots::{
     get_all_display, take_screenshot_all_displays, take_screenshot_area, take_screenshot_display,
 };
 use arboard::Clipboard;
 use eframe::egui;
-use egui::{Align, Color32, Context, FontFamily, Layout, TextureHandle, TopBottomPanel, Ui, Vec2};
+use egui::{
+    Align, Color32, Context, FontFamily, Layout, Margin, Rounding, TextureHandle, TopBottomPanel,
+    Ui, Vec2, Button,
+};
 use image::DynamicImage;
 use rfd::FileDialog;
 
@@ -59,6 +62,7 @@ struct RustScreenRecorder {
     draw_draw: bool,
     flag: i32,
     draw_text: bool,
+    ff: bool,
 }
 
 impl RustScreenRecorder {
@@ -112,6 +116,7 @@ impl RustScreenRecorder {
             draw_dim_variable: 0,
             draw_draw: false,
             draw_text: false,
+            ff: false, //first in filled
         }
     }
     fn show_menu(&mut self, ctx: &Context, frame: &mut eframe::Frame) {
@@ -232,7 +237,7 @@ impl RustScreenRecorder {
                     self.draw_draw = false;
                     self.draw_text = false;
                     self.type_e = TypeEdit::Shape;
-                    self.property.draw=Some(0);
+                    self.property.draw = Some(0);
                 }
 
                 // if self.draw_shape {
@@ -356,19 +361,22 @@ impl RustScreenRecorder {
                     self.show_shape(ctx, frame, first, ui);
                 }
                 TypeEdit::Draw => {
-                   self.show_draw(ctx, frame, ui);
+                    self.show_draw(ctx, frame, ui);
                 }
                 TypeEdit::Text => {
                     TopBottomPanel::top("4bottom panel").show(ctx, |ui| {
                         ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
-                    ui.text_edit_multiline(&mut self.text);
-                    ui.separator();
-                    ui.add(egui::Slider::new(&mut self.property.width, 0.0..=50.).text("Width"));
-                    if ui.button("Exit").clicked() {
-                        self.type_e = TypeEdit::None;
-                    }
-                });
-            });
+                            ui.text_edit_multiline(&mut self.text);
+                            ui.separator();
+                            ui.add(
+                                egui::Slider::new(&mut self.property.width, 0.0..=50.)
+                                    .text("Width"),
+                            );
+                            if ui.button("Exit").clicked() {
+                                self.type_e = TypeEdit::None;
+                            }
+                        });
+                    });
                 }
                 TypeEdit::None => {}
             }
@@ -376,6 +384,7 @@ impl RustScreenRecorder {
     }
 
     fn show_shape(&mut self, ctx: &Context, frame: &mut eframe::Frame, first: &str, ui: &mut Ui) {
+        
         TopBottomPanel::top("2bottom panel").show(ctx, |ui| {
             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                 egui::ComboBox::from_label("")
@@ -386,7 +395,7 @@ impl RustScreenRecorder {
                         ui.selectable_value(&mut self.property.draw, Some(1), "square");
                         ui.selectable_value(&mut self.property.draw, Some(2), "arrow");
                     });
-                ui.separator();
+
                 egui::widgets::color_picker::show_color(
                     ui,
                     Color32::from_rgb(
@@ -406,34 +415,44 @@ impl RustScreenRecorder {
                 if ui.checkbox(&mut self.property.filled, "Fill").clicked() {
                     self.property.filled = self.property.filled;
                 }
-                if self.property.filled {
-                    TopBottomPanel::top("6bottom panel").show(ctx, |ui| {
-                    ui.with_layout(Layout::from_main_dir_and_cross_align(egui::Direction::TopDown,Align::Center), |ui| {
-                    egui::widgets::color_picker::show_color(
-                        ui,
-                        Color32::from_rgb(
-                            self.property.color_fill.red,
-                            self.property.color_fill.green,
-                            self.property.color_fill.blue,
-                        ),
-                        Vec2::new(18.0, 18.0),
-                    );
-                    ui.add(
-                        egui::Slider::new(&mut self.property.color_fill.red, 0..=255).text("Red"),
-                    );
-                    ui.add(
-                        egui::Slider::new(&mut self.property.color_fill.green, 0..=255)
-                            .text("Green"),
-                    );
-                    ui.add(
-                        egui::Slider::new(&mut self.property.color_fill.blue, 0..=255).text("Blue"),
-                    );
-                });
-            });
-                }
                 if ui.button("Exit").clicked() {
                     self.type_e = TypeEdit::None;
+                    self.property.filled=false;
                 }
+                // if self.property.filled {
+                //     ui.with_layout(
+                //         Layout::top_down(
+                //             Align::Center,
+                //             //Align::Center,
+                //         ),
+                //         |ui| {
+                //             egui::widgets::color_picker::show_color(
+                //                 ui,
+                //                 Color32::from_rgb(
+                //                     self.property.color_fill.red,
+                //                     self.property.color_fill.green,
+                //                     self.property.color_fill.blue,
+                //                 ),
+                //                 Vec2::new(18.0, 18.0),
+                //             );
+
+                //             ui.add(
+                //                 egui::Slider::new(&mut self.property.color_fill.red, 0..=255)
+                //                     .text("Red"),
+                //             );
+                //             ui.add(
+                //                 egui::Slider::new(&mut self.property.color_fill.green, 0..=255)
+                //                     .text("Green"),
+                //             );
+                //             ui.add(
+                //                 egui::Slider::new(&mut self.property.color_fill.blue, 0..=255)
+                //                     .text("Blue"),
+                //             );
+                //         },
+                //     );
+                   
+                // }
+
                 if self.property.draw.unwrap() >= 0 {
                     draw::create_figure(
                         self.vec_shape.as_mut(),
@@ -465,9 +484,7 @@ impl RustScreenRecorder {
                     Vec2::new(18.0, 18.0),
                 );
                 ui.add(egui::Slider::new(&mut self.property.color.red, 0..=255).text("Red"));
-                ui.add(
-                    egui::Slider::new(&mut self.property.color.green, 0..=255).text("Green"),
-                );
+                ui.add(egui::Slider::new(&mut self.property.color.green, 0..=255).text("Green"));
                 ui.add(egui::Slider::new(&mut self.property.color.blue, 0..=255).text("Blue"));
 
                 ui.separator();
@@ -579,15 +596,62 @@ impl RustScreenRecorder {
 
 impl eframe::App for RustScreenRecorder {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        //     egui::CentralPanel::frame(self, egui::Frame { inner_margin: (Margin{left:20.0,right: 20.0,top:20.0,bottom:20.0}), outer_margin: (Margin{left:20.0,right: 20.0,top:20.0,bottom:20.0}), rounding: (Rounding{nw:10.0,ne:10.0,sw:10.0,se:10.0}), shadow: (), fill: (), stroke: () })
         self.show_menu(ctx, frame);
-        //egui::CentralPanel::frame(self, frame)
-        egui::CentralPanel::default().show(ctx, |ui| {
-            self.window_size = Vec2::new(
+         egui::CentralPanel::default().show(ctx, |ui| {
+            if self.property.filled {
+                ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
+                        egui::widgets::color_picker::show_color(
+                            ui,
+                            Color32::from_rgb(
+                                self.property.color_fill.red,
+                                self.property.color_fill.green,
+                                self.property.color_fill.blue,
+                            ),
+                            Vec2::new(18.0, 18.0),
+                        );
+
+                        ui.add(
+                            egui::Slider::new(&mut self.property.color_fill.red, 0..=255)
+                                .text("Red"),
+                        );
+                        ui.add(
+                            egui::Slider::new(&mut self.property.color_fill.green, 0..=255)
+                                .text("Green"),
+                        );
+                        ui.add(
+                            egui::Slider::new(&mut self.property.color_fill.blue, 0..=255)
+                                .text("Blue"),
+                        );
+                    });
+            }
+                if self.type_e==TypeEdit::Text{
+                           // TopBottomPanel::top("4bottom panel").show(ctx, |ui| {
+                            ui.with_layout(
+                                Layout::top_down(
+                                    Align::Center,
+                                    //Align::Center,
+                                ),
+                                |ui| {
+                                    ui.text_edit_multiline(&mut self.text);
+                                    ui.separator();
+                                    ui.add(
+                                        egui::Slider::new(&mut self.property.width, 0.0..=50.)
+                                            .text("Width"),
+                                    );
+                                    if ui.button("Exit").clicked() {
+                                        self.type_e = TypeEdit::None;
+                                    }
+                                });
+                           // });
+                        }
+            
+           self.window_size = Vec2::new(
                 frame.info().window_info.size.x,
                 frame.info().window_info.size.y,
             );
             ui.vertical_centered(|ui| {
-                // ui.spacing();
+        //         // ui.spacing();
                 let available_size = ui.available_size();
                 let image_size = self.image.size_vec2();
 
@@ -607,6 +671,8 @@ impl eframe::App for RustScreenRecorder {
                 );
                 self.image_size.x = image_width;
                 self.image_size.y = image_height;
+                // ui.add(
+                //                egui::Image::new((self.image.id(), Vec2::new(image_width, image_height))));
                 ui.add(
                     egui::Image::new((self.image.id(), Vec2::new(image_width, image_height)))
                         .maintain_aspect_ratio(true)
@@ -619,20 +685,14 @@ impl eframe::App for RustScreenRecorder {
                     egui::Pos2::new(x_offset - 255.0, y_offset),
                     Vec2::new(image_width, image_height),
                 ));
+        
+               // ui.add(egui::Image::new(egui::include_image!("../../target/screen1.png")));
                 draw::draw(ui, self.vec_shape.as_mut());
             });
-        });
+       });
     }
     // fn post_rendering(&mut self, _window_size: [u32; 2], frame: &eframe::Frame) {
-    //     // if self.screen==true {
-    //     //     egui::CentralPanel::default().show(&self.ctx, |ui| {
-    //     //                 ui.add(
-    //     //                     egui::Image::new(egui::include_image!( "../../target/1.png"))
-    //     //                             .fit_to_original_size(0.48)
-    //     //                 );
-
-    //     //            });
-
-    //     //    }
+       
+            
     // }
 }
