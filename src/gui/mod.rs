@@ -327,7 +327,6 @@ impl RustScreenRecorder {
                     if ctx.input(|i| i.pointer.primary_clicked()) {
                         self.cut = 0
                     }
-                    
                     if ctx.input(|i| i.pointer.primary_down()) {
                         self.pos_start = ctx.input(|i| i.pointer.press_origin().unwrap());
                         self.pos_mouse = ctx.input(|i| i.pointer.hover_pos().unwrap());
@@ -345,8 +344,8 @@ impl RustScreenRecorder {
                         );
                         self.cutRect = rectangle;
                     }
-                    print!("{:?} ",self.pos_start);
                     if ctx.input(|i| i.key_pressed(egui::Key::Enter)) && self.cut != -1 {
+                        println!("{:?}",ctx.available_rect());
                         match self.screen_index {
                             Some(index) => {
                                 if self.timer.unwrap() != 0 {
@@ -354,11 +353,13 @@ impl RustScreenRecorder {
                                         self.timer.unwrap() as u64,
                                     ));
                                 }
+                                println!("{:?} {:?}",self.pos_start, self.pos_mouse);
+                                let display_info = self.screens[index as usize].clone().display_info;
                                 self.screenshot = take_screenshot_area(
                                     self.screens[index as usize].clone(),
-                                    (self.pos_start.x+48.0) as i32,
-                                    (self.pos_start.y+70.0) as i32,
-                                    ((self.pos_mouse.x-self.pos_start.x)-1.0) as u32,
+                                    self.pos_start.x as i32+ display_info.width as i32 - ctx.available_rect().max.x as i32,
+                                    self.pos_start.y as i32 + display_info.height as i32 - ctx.available_rect().max.y as i32,
+                                    ((self.pos_mouse.x-self.pos_start.x)) as u32,
                                     (self.pos_mouse.y-self.pos_start.y) as u32,
                                     // self.pos_start.x as i32,
                                     // self.pos_start.y as i32,
