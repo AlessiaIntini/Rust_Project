@@ -301,7 +301,7 @@ fn draw_circle(ui: &mut Ui, shape: &CircleShape) {
     painter.circle(shape.center, shape.radius, shape.fill, shape.stroke);
 }
 
-fn draw_rect(ui: &mut Ui, shape: &RectShape) {
+pub fn draw_rect(ui: &mut Ui, shape: &RectShape) {
     let painter = ui.painter();
     painter.rect(shape.rect, shape.rounding, shape.fill, shape.stroke)
 }

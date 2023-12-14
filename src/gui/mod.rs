@@ -1,18 +1,18 @@
 use std::{borrow::Cow, default, path::PathBuf};
 mod draw;
+use self::draw::ProperDraw;
 use crate::utility::screenshots::{
     get_all_display, take_screenshot_all_displays, take_screenshot_area, take_screenshot_display,
 };
 use arboard::Clipboard;
 use eframe::egui;
+use eframe::epaint::RectShape;
 use egui::{
-    Align, Color32, Context, FontFamily, Layout, Margin, Rounding, TextureHandle, TopBottomPanel,
-    Ui, Vec2, Button,
+    Align, Button, Color32, Context, FontFamily, Layout, Margin, Rounding, TextureHandle,
+    TopBottomPanel, Ui, Vec2, Pos2,
 };
 use image::DynamicImage;
 use rfd::FileDialog;
-
-use self::draw::ProperDraw;
 
 pub fn main_window() -> eframe::Result<()> {
     let window_option = eframe::NativeOptions {
@@ -62,7 +62,11 @@ struct RustScreenRecorder {
     draw_draw: bool,
     flag: i32,
     draw_text: bool,
-    ff: bool,
+    crop: bool,
+    cutRect: egui::epaint::RectShape,
+    cut: i32,
+    pos_start:Pos2,
+    pos_mouse:Pos2,
 }
 
 impl RustScreenRecorder {
@@ -116,7 +120,23 @@ impl RustScreenRecorder {
             draw_dim_variable: 0,
             draw_draw: false,
             draw_text: false,
-            ff: false, //first in filled
+            crop: false, //first in filled
+            cutRect: egui::epaint::RectShape::new(
+                egui::Rect {
+                    min: egui::epaint::pos2(0., 0.),
+                    max: egui::epaint::pos2(0., 0.),
+                },
+                Rounding::ZERO,
+                Color32::TRANSPARENT,
+                egui::Stroke {
+                    width: 0.,
+                    color: Color32::TRANSPARENT,
+                },
+            ),
+            cut: -1,
+            pos_start:Pos2::new(0.0, 0.0),
+            pos_mouse:Pos2::new(0.0, 0.0),
+
         }
     }
     fn show_menu(&mut self, ctx: &Context, frame: &mut eframe::Frame) {
@@ -142,37 +162,37 @@ impl RustScreenRecorder {
                 //         Default::default(),
                 //     );
                 // }
-                if ui.button("Screen area").clicked() {
-                    match self.screen_index {
-                        Some(screen_index) => {
-                            if self.timer.unwrap() != 0 {
-                                std::thread::sleep(std::time::Duration::from_secs(
-                                    self.timer.unwrap() as u64,
-                                ));
-                            }
-                            self.screenshot = take_screenshot_area(
-                                self.screens[screen_index as usize].clone(),
-                                100,
-                                100,
-                                100,
-                                100,
-                            );
-                            self.image = ctx.load_texture(
-                                "screenshot",
-                                egui::ColorImage::from_rgba_unmultiplied(
-                                    [
-                                        self.screenshot.as_ref().unwrap().width() as usize,
-                                        self.screenshot.as_ref().unwrap().height() as usize,
-                                    ],
-                                    self.screenshot.as_ref().unwrap().as_bytes(),
-                                ),
-                                Default::default(),
-                            );
-                        }
-                        None => (),
-                    }
-                }
-                if ui.button("Selected Screen").clicked() {
+                // if ui.button("Screen area").clicked() {
+                //     match self.screen_index {
+                //         Some(screen_index) => {
+                //             if self.timer.unwrap() != 0 {
+                //                 std::thread::sleep(std::time::Duration::from_secs(
+                //                     self.timer.unwrap() as u64,
+                //                 ));
+                //             }
+                //             self.screenshot = take_screenshot_area(
+                //                 self.screens[screen_index as usize].clone(),
+                //                 100,
+                //                 100,
+                //                 100,
+                //                 100,
+                //             );
+                //             self.image = ctx.load_texture(
+                //                 "screenshot",
+                //                 egui::ColorImage::from_rgba_unmultiplied(
+                //                     [
+                //                         self.screenshot.as_ref().unwrap().width() as usize,
+                //                         self.screenshot.as_ref().unwrap().height() as usize,
+                //                     ],
+                //                     self.screenshot.as_ref().unwrap().as_bytes(),
+                //                 ),
+                //                 Default::default(),
+                //             );
+                //         }
+                //         None => (),
+                //     }
+                // }
+                if ui.button("New Screen").clicked() {
                     match self.screen_index {
                         Some(screen_index) => {
                             if self.timer.unwrap() != 0 {
@@ -236,6 +256,7 @@ impl RustScreenRecorder {
                     self.draw_shape = true;
                     self.draw_draw = false;
                     self.draw_text = false;
+                    self.crop = false;
                     self.type_e = TypeEdit::Shape;
                     self.property.draw = Some(0);
                 }
@@ -248,6 +269,7 @@ impl RustScreenRecorder {
                     self.draw_draw = true;
                     self.draw_shape = false;
                     self.draw_text = false;
+                    self.crop = false;
                 }
                 // if self.draw_draw == true {
                 //     self.draw_shape = false;
@@ -289,19 +311,83 @@ impl RustScreenRecorder {
                     self.property.draw = Some(3);
                     self.draw_text = true;
                     self.type_e = TypeEdit::Text;
+                    self.crop = false;
                 }
                 // if self.draw_text {
                 //     ui.text_edit_multiline(&mut self.text);
                 // }
-                if ui.button("Cut").clicked() {
+                if ui.button("Crop").clicked() {
                     self.draw_shape = false;
                     self.draw_draw = false;
                     self.draw_text = false;
+                    self.crop = true;
+                }
+                if self.crop {
+                    // cut_figure(ctx, &mut self.cut,&mut self.cutRect,self.screen_index,self.timer,self.screens,self.screenshot.clone(),self.image.clone());
+                    if ctx.input(|i| i.pointer.primary_clicked()) {
+                        self.cut = 0
+                    }
+                    
+                    if ctx.input(|i| i.pointer.primary_down()) {
+                        self.pos_start = ctx.input(|i| i.pointer.press_origin().unwrap());
+                        self.pos_mouse = ctx.input(|i| i.pointer.hover_pos().unwrap());
+                        let rectangle = egui::epaint::RectShape::new(
+                            egui::Rect {
+                                min: self.pos_start,
+                                max: egui::epaint::pos2(self.pos_mouse.x, self.pos_mouse.y),
+                            },
+                            Rounding::ZERO,
+                            Color32::TRANSPARENT,
+                            egui::Stroke {
+                                width: 10.,
+                                color: Color32::BLACK,
+                            },
+                        );
+                        self.cutRect = rectangle;
+                    }
+                    print!("{:?} ",self.pos_start);
+                    if ctx.input(|i| i.key_pressed(egui::Key::Enter)) && self.cut != -1 {
+                        match self.screen_index {
+                            Some(index) => {
+                                if self.timer.unwrap() != 0 {
+                                    std::thread::sleep(std::time::Duration::from_secs(
+                                        self.timer.unwrap() as u64,
+                                    ));
+                                }
+                                self.screenshot = take_screenshot_area(
+                                    self.screens[index as usize].clone(),
+                                    self.pos_start.x as i32,
+                                    self.pos_start.y as i32,
+                                    50,
+                                    50,
+                                    // self.pos_start.x as i32,
+                                    // self.pos_start.y as i32,
+                                    // (self.pos_mouse.x-self.pos_start.x) as u32,
+                                    // (self.pos_mouse.y-self.pos_start.y) as u32,
+                                );
+                                
+                                self.image = ctx.load_texture(
+                                    "screenshot",
+                                    egui::ColorImage::from_rgba_unmultiplied(
+                                        [
+                                            self.screenshot.as_ref().unwrap().width() as usize,
+                                            self.screenshot.as_ref().unwrap().height() as usize,
+                                        ],
+                                        self.screenshot.as_ref().unwrap().as_bytes(),
+                                    ),
+                                    Default::default(),
+                                );
+                            }
+                            None => (),
+                        }
+                        self.cut = -1;
+                    }
                 }
                 if ui.button("Cancel").clicked() {
                     self.draw_shape = false;
                     self.draw_draw = false;
                     self.draw_text = false;
+                    self.crop = false;
                 }
                 if ui.button("Back").clicked() {
                     self.vec_shape.pop();
@@ -312,6 +398,7 @@ impl RustScreenRecorder {
                     self.draw_shape = false;
                     self.draw_text = false;
                     self.draw_draw = false;
+                    self.crop = false;
                     let origin =
                         Vec2::new((self.border_size.x / 2.0) + 18.0, self.border_size.y + 60.0);
                     let image_width = self.image_size.x + 60.0;
@@ -343,6 +430,7 @@ impl RustScreenRecorder {
                     self.draw_shape = false;
                     self.draw_draw = false;
                     self.draw_text = false;
+                    self.crop = false;
                     self.edit = Mood::None;
                     self.vec_shape = Vec::new();
                     self.flag = 0;
@@ -384,7 +472,6 @@ impl RustScreenRecorder {
     }
 
     fn show_shape(&mut self, ctx: &Context, frame: &mut eframe::Frame, first: &str, ui: &mut Ui) {
-        
         TopBottomPanel::top("2bottom panel").show(ctx, |ui| {
             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                 egui::ComboBox::from_label("")
@@ -417,7 +504,7 @@ impl RustScreenRecorder {
                 }
                 if ui.button("Exit").clicked() {
                     self.type_e = TypeEdit::None;
-                    self.property.filled=false;
+                    self.property.filled = false;
                 }
                 // if self.property.filled {
                 //     ui.with_layout(
@@ -450,7 +537,7 @@ impl RustScreenRecorder {
                 //             );
                 //         },
                 //     );
-                   
+
                 // }
 
                 if self.property.draw.unwrap() >= 0 {
@@ -593,65 +680,117 @@ impl RustScreenRecorder {
         let _done = clipboard.set_image(img);
     }
 }
-
+pub fn cut_figure(
+    ctx: &egui::Context,
+    cut: &mut i32,
+    cutRect: &mut egui::epaint::RectShape,
+    index: Option<u8>,
+    timer: Option<i64>,
+    screens: Vec<screenshots::Screen>,
+    mut screenshot: Option<DynamicImage>,
+    mut image: TextureHandle,
+) {
+    if ctx.input(|i| i.pointer.primary_clicked()) {
+        *cut = 0
+    }
+    if ctx.input(|i| i.pointer.primary_down()) {
+        let pos_start = ctx.input(|i| i.pointer.press_origin().unwrap());
+        let pos_mouse = ctx.input(|i| i.pointer.hover_pos().unwrap());
+        let rectangle = egui::epaint::RectShape::new(
+            egui::Rect {
+                min: pos_start,
+                max: egui::epaint::pos2(pos_mouse.x, pos_mouse.y),
+            },
+            Rounding::ZERO,
+            Color32::TRANSPARENT,
+            egui::Stroke {
+                width: 10.,
+                color: Color32::BLACK,
+            },
+        );
+        *cutRect = rectangle;
+    }
+    if ctx.input(|i| i.key_pressed(egui::Key::Enter)) && *cut != -1 {
+        match index {
+            Some(index) => {
+                if timer.unwrap() != 0 {
+                    std::thread::sleep(std::time::Duration::from_secs(timer.unwrap() as u64));
+                }
+                screenshot =
+                    take_screenshot_area(screens[index as usize].clone(), 100, 100, 100, 100);
+                image = ctx.load_texture(
+                    "screenshot",
+                    egui::ColorImage::from_rgba_unmultiplied(
+                        [
+                            screenshot.as_ref().unwrap().width() as usize,
+                            screenshot.as_ref().unwrap().height() as usize,
+                        ],
+                        &mut screenshot.as_ref().unwrap().as_bytes(),
+                    ),
+                    Default::default(),
+                );
+            }
+            None => (),
+        }
+        *cut = -1;
+    }
+}
 impl eframe::App for RustScreenRecorder {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         //     egui::CentralPanel::frame(self, egui::Frame { inner_margin: (Margin{left:20.0,right: 20.0,top:20.0,bottom:20.0}), outer_margin: (Margin{left:20.0,right: 20.0,top:20.0,bottom:20.0}), rounding: (Rounding{nw:10.0,ne:10.0,sw:10.0,se:10.0}), shadow: (), fill: (), stroke: () })
         self.show_menu(ctx, frame);
-         egui::CentralPanel::default().show(ctx, |ui| {
+        egui::CentralPanel::default().show(ctx, |ui| {
             if self.property.filled {
                 ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
-                        egui::widgets::color_picker::show_color(
-                            ui,
-                            Color32::from_rgb(
-                                self.property.color_fill.red,
-                                self.property.color_fill.green,
-                                self.property.color_fill.blue,
-                            ),
-                            Vec2::new(18.0, 18.0),
-                        );
+                    egui::widgets::color_picker::show_color(
+                        ui,
+                        Color32::from_rgb(
+                            self.property.color_fill.red,
+                            self.property.color_fill.green,
+                            self.property.color_fill.blue,
+                        ),
+                        Vec2::new(18.0, 18.0),
+                    );
 
-                        ui.add(
-                            egui::Slider::new(&mut self.property.color_fill.red, 0..=255)
-                                .text("Red"),
-                        );
-                        ui.add(
-                            egui::Slider::new(&mut self.property.color_fill.green, 0..=255)
-                                .text("Green"),
-                        );
-                        ui.add(
-                            egui::Slider::new(&mut self.property.color_fill.blue, 0..=255)
-                                .text("Blue"),
-                        );
-                    });
+                    ui.add(
+                        egui::Slider::new(&mut self.property.color_fill.red, 0..=255).text("Red"),
+                    );
+                    ui.add(
+                        egui::Slider::new(&mut self.property.color_fill.green, 0..=255)
+                            .text("Green"),
+                    );
+                    ui.add(
+                        egui::Slider::new(&mut self.property.color_fill.blue, 0..=255).text("Blue"),
+                    );
+                });
             }
-                if self.type_e==TypeEdit::Text{
-                           // TopBottomPanel::top("4bottom panel").show(ctx, |ui| {
-                            ui.with_layout(
-                                Layout::top_down(
-                                    Align::Center,
-                                    //Align::Center,
-                                ),
-                                |ui| {
-                                    ui.text_edit_multiline(&mut self.text);
-                                    ui.separator();
-                                    ui.add(
-                                        egui::Slider::new(&mut self.property.width, 0.0..=50.)
-                                            .text("Width"),
-                                    );
-                                    if ui.button("Exit").clicked() {
-                                        self.type_e = TypeEdit::None;
-                                    }
-                                });
-                           // });
+            if self.type_e == TypeEdit::Text {
+                // TopBottomPanel::top("4bottom panel").show(ctx, |ui| {
+                ui.with_layout(
+                    Layout::top_down(
+                        Align::Center,
+                        //Align::Center,
+                    ),
+                    |ui| {
+                        ui.text_edit_multiline(&mut self.text);
+                        ui.separator();
+                        ui.add(
+                            egui::Slider::new(&mut self.property.width, 0.0..=50.).text("Width"),
+                        );
+                        if ui.button("Exit").clicked() {
+                            self.type_e = TypeEdit::None;
                         }
-            
-           self.window_size = Vec2::new(
+                    },
+                );
+                // });
+            }
+
+            self.window_size = Vec2::new(
                 frame.info().window_info.size.x,
                 frame.info().window_info.size.y,
             );
             ui.vertical_centered(|ui| {
-        //         // ui.spacing();
+                //         // ui.spacing();
                 let available_size = ui.available_size();
                 let image_size = self.image.size_vec2();
 
@@ -685,14 +824,14 @@ impl eframe::App for RustScreenRecorder {
                     egui::Pos2::new(x_offset - 255.0, y_offset),
                     Vec2::new(image_width, image_height),
                 ));
-        
-               // ui.add(egui::Image::new(egui::include_image!("../../target/screen1.png")));
+
+                // ui.add(egui::Image::new(egui::include_image!("../../target/screen1.png")));
                 draw::draw(ui, self.vec_shape.as_mut());
+                draw::draw_rect(ui, &self.cutRect);
             });
-       });
+        });
     }
     // fn post_rendering(&mut self, _window_size: [u32; 2], frame: &eframe::Frame) {
-       
-            
+
     // }
 }
