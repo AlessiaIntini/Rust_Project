@@ -339,7 +339,7 @@ impl RustScreenRecorder {
                             Rounding::ZERO,
                             Color32::TRANSPARENT,
                             egui::Stroke {
-                                width: 10.,
+                                width: 1.,
                                 color: Color32::BLACK,
                             },
                         );
@@ -356,10 +356,10 @@ impl RustScreenRecorder {
                                 }
                                 self.screenshot = take_screenshot_area(
                                     self.screens[index as usize].clone(),
-                                    self.pos_start.x as i32,
-                                    self.pos_start.y as i32,
-                                    50,
-                                    50,
+                                    (self.pos_start.x+48.0) as i32,
+                                    (self.pos_start.y+70.0) as i32,
+                                    ((self.pos_mouse.x-self.pos_start.x)-1.0) as u32,
+                                    (self.pos_mouse.y-self.pos_start.y) as u32,
                                     // self.pos_start.x as i32,
                                     // self.pos_start.y as i32,
                                     // (self.pos_mouse.x-self.pos_start.x) as u32,
