@@ -381,6 +381,18 @@ impl RustScreenRecorder {
                             }
                             None => (),
                         }
+                        self.cutRect = egui::epaint::RectShape::new(
+                            egui::Rect {
+                                min: egui::epaint::pos2(0., 0.),
+                                max: egui::epaint::pos2(0., 0.),
+                            },
+                            Rounding::ZERO,
+                            Color32::TRANSPARENT,
+                            egui::Stroke {
+                                width: 0.,
+                                color: Color32::TRANSPARENT,
+                            },
+                        );
                         self.cut = -1;
                     }
                 }
