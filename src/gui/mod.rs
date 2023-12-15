@@ -839,8 +839,9 @@ impl eframe::App for RustScreenRecorder {
                 ));
 
                 // ui.add(egui::Image::new(egui::include_image!("../../target/screen1.png")));
-                draw::draw(ui, self.vec_shape.as_mut());
+                
                 draw::draw_rect(ui, &self.cutRect);
+                draw::draw(ui, self.vec_shape.as_mut());
             });
         });
     }
