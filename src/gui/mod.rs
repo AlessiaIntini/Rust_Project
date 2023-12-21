@@ -323,6 +323,7 @@ impl RustScreenRecorder {
                     self.crop = true;
                 }
                 if self.crop {
+                    let width=1.;
                     // cut_figure(ctx, &mut self.cut,&mut self.cutRect,self.screen_index,self.timer,self.screens,self.screenshot.clone(),self.image.clone());
                     if ctx.input(|i| i.pointer.primary_clicked()) {
                         self.cut = 0
@@ -357,14 +358,10 @@ impl RustScreenRecorder {
                                 let display_info = self.screens[index as usize].clone().display_info;
                                 self.screenshot = take_screenshot_area(
                                     self.screens[index as usize].clone(),
-                                    self.pos_start.x as i32+ display_info.width as i32 - ctx.available_rect().max.x as i32,
-                                    self.pos_start.y as i32 + display_info.height as i32 - ctx.available_rect().max.y as i32,
-                                    ((self.pos_mouse.x-self.pos_start.x)) as u32,
-                                    (self.pos_mouse.y-self.pos_start.y) as u32,
-                                    // self.pos_start.x as i32,
-                                    // self.pos_start.y as i32,
-                                    // (self.pos_mouse.x-self.pos_start.x) as u32,
-                                    // (self.pos_mouse.y-self.pos_start.y) as u32,
+                                    (self.pos_start.x + width - ctx.available_rect().max.x) as i32 + display_info.width as i32,
+                                    (self.pos_start.y + width - ctx.available_rect().max.y) as i32 + display_info.height as i32,
+                                    ((self.pos_mouse.x-self.pos_start.x - 1.8*width)) as u32,
+                                    (self.pos_mouse.y-self.pos_start.y - width) as u32,
                                 );
                                 
                                 self.image = ctx.load_texture(
@@ -465,19 +462,19 @@ impl RustScreenRecorder {
                     self.show_draw(ctx, frame, ui);
                 }
                 TypeEdit::Text => {
-                    TopBottomPanel::top("4bottom panel").show(ctx, |ui| {
-                        ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
-                            ui.text_edit_multiline(&mut self.text);
-                            ui.separator();
-                            ui.add(
-                                egui::Slider::new(&mut self.property.width, 0.0..=50.)
-                                    .text("Width"),
-                            );
-                            if ui.button("Exit").clicked() {
-                                self.type_e = TypeEdit::None;
-                            }
-                        });
-                    });
+                    // TopBottomPanel::top("4bottom panel").show(ctx, |ui| {
+                    //     ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
+                    //         ui.text_edit_multiline(&mut self.text);
+                    //         ui.separator();
+                    //         ui.add(
+                    //             egui::Slider::new(&mut self.property.width, 0.0..=50.)
+                    //                 .text("Width"),
+                    //         );
+                    //         if ui.button("Exit").clicked() {
+                    //             self.type_e = TypeEdit::None;
+                    //         }
+                    //     });
+                    // });
                 }
                 TypeEdit::None => {}
             }
@@ -780,12 +777,14 @@ impl eframe::App for RustScreenRecorder {
             if self.type_e == TypeEdit::Text {
                 // TopBottomPanel::top("4bottom panel").show(ctx, |ui| {
                 ui.with_layout(
-                    Layout::top_down(
-                        Align::Center,
+                    Layout::left_to_right(
+                        Align::Min,
                         //Align::Center,
                     ),
                     |ui| {
-                        ui.text_edit_multiline(&mut self.text);
+                        
+                        ui.text_edit_singleline(&mut self.text);
+                        
                         ui.separator();
                         ui.add(
                             egui::Slider::new(&mut self.property.width, 0.0..=50.).text("Width"),
@@ -794,6 +793,19 @@ impl eframe::App for RustScreenRecorder {
                             self.type_e = TypeEdit::None;
                         }
                     },
+                );
+                self.property.draw=Some(3);
+                draw::create_figure(
+                    self.vec_shape.as_mut(),
+                    ctx,
+                    self.property,
+                    self.text.to_string(),
+                    &mut self.draw_dim_variable,
+                    self.font.clone(),
+                    self.border_size.x,
+                    self.border_size.y,
+                    self.image_size.x,
+                    self.image_size.y,
                 );
                 // });
             }
