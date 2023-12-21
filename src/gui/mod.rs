@@ -9,7 +9,7 @@ use eframe::egui;
 use eframe::epaint::RectShape;
 use egui::{
     Align, Button, Color32, Context, FontFamily, Layout, Margin, Rounding, TextureHandle,
-    TopBottomPanel, Ui, Vec2, Pos2,
+    TopBottomPanel, Ui, Vec2, Pos2
 };
 use image::DynamicImage;
 use rfd::FileDialog;
@@ -409,16 +409,18 @@ impl RustScreenRecorder {
                     self.draw_text = false;
                     self.draw_draw = false;
                     self.crop = false;
-                    let origin =
-                        Vec2::new((self.border_size.x / 2.0) + 18.0, self.border_size.y + 60.0);
-                    let image_width = self.image_size.x + 60.0;
-                    let image_hight = self.image_size.y + 20.0;
+                    println!("ctx: {:?} ", ctx.available_rect());
+                    let display_info = self.screens[self.screen_index.unwrap() as usize].clone().display_info;
+                    println!("display info: {:?}", display_info);
+                    println!("border {:?}", self.border_size);
+                    println!("windows sieze {:?}", self.window_size);
+                    //let image_height = self.window_size.y;
                     self.screenshot = take_screenshot_area(
                         self.screens[self.screen_index.unwrap() as usize].clone(),
-                        origin.x as i32,
-                        origin.y as i32,
-                        image_width as u32,
-                        image_hight as u32,
+                        0. as i32,
+                        display_info.height as i32 - ctx.available_rect().max.y as i32+ self.border_size.y as i32 - 1,
+                        ctx.available_rect().max.x as u32,
+                        ctx.available_rect().max.y as u32 - self.border_size.y as u32,
                     );
                     self.image = ctx.load_texture(
                         "screenshot",
