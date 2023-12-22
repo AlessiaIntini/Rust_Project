@@ -409,12 +409,7 @@ impl RustScreenRecorder {
                     self.draw_text = false;
                     self.draw_draw = false;
                     self.crop = false;
-                    println!("ctx: {:?} ", ctx.available_rect());
                     let display_info = self.screens[self.screen_index.unwrap() as usize].clone().display_info;
-                    println!("display info: {:?}", display_info);
-                    println!("border {:?}", self.border_size);
-                    println!("windows sieze {:?}", self.window_size);
-                    //let image_height = self.window_size.y;
                     self.screenshot = take_screenshot_area(
                         self.screens[self.screen_index.unwrap() as usize].clone(),
                         0. as i32,
