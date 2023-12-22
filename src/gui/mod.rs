@@ -710,7 +710,7 @@ impl eframe::App for RustScreenRecorder {
                 frame.info().window_info.size.x,
                 frame.info().window_info.size.y,
             );
-            ui.vertical_centered(|ui| {
+            ui. vertical_centered_justified(|ui| {
                 let available_size = ui.available_size();
                 let image_size = self.image.size_vec2();
 
@@ -730,19 +730,19 @@ impl eframe::App for RustScreenRecorder {
                 );
                 self.image_size.x = image_width;
                 self.image_size.y = image_height;
-
-                ui.add(
-                    egui::Image::new((self.image.id(), Vec2::new(image_width, image_height)))
-                        .maintain_aspect_ratio(true)
-                        .fit_to_exact_size(Vec2::new(
-                            frame.info().window_info.size.x,
-                            frame.info().window_info.size.y,
-                        )),
-                )
-                .with_new_rect(egui::Rect::from_min_size(
-                    egui::Pos2::new(x_offset - 255.0, y_offset),
-                    Vec2::new(image_width, image_height),
-                ));
+                ui.add(egui::Image::new((self.image.id(), Vec2::new(image_width, image_height))));
+                // ui.add(
+                //     egui::Image::new((self.image.id(), Vec2::new(image_width, image_height)))
+                //         .maintain_aspect_ratio(true)
+                //         .fit_to_exact_size(Vec2::new(
+                //             frame.info().window_info.size.x,
+                //             frame.info().window_info.size.y,
+                //         )),
+                // )
+                // .with_new_rect(egui::Rect::from_min_size(
+                //     egui::Pos2::new(x_offset - 255.0, y_offset),
+                //     Vec2::new(image_width, image_height),
+                // ));
 
                 draw::draw_rect(ui, &self.cutRect);
                 draw::draw(ui, self.vec_shape.as_mut());
