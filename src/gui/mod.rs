@@ -8,6 +8,7 @@ mod mod_screen;
 use self::mod_screen::*;
 
 use self::settings::ImageFormat;
+use crate::utility::shortcuts;
 use eframe::egui;
 use eframe::epaint::RectShape;
 use egui::{
@@ -17,14 +18,12 @@ use egui::{
 use image::DynamicImage;
 use rfd::FileDialog;
 
-const SIDE_PANEL_WIDTH: f32 = 255.0;
-
 pub fn main_window() -> eframe::Result<()> {
     let window_option = eframe::NativeOptions {
-        resizable: false,
         follow_system_theme: true,
         maximized: true,
         transparent: false,
+        min_window_size: Some(Vec2::new(793.0, 547.0)),
         ..Default::default()
     };
     eframe::run_native(
@@ -80,7 +79,8 @@ struct RustScreenRecorder {
 
 impl RustScreenRecorder {
     fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        let screenshot = take_screenshot_all_displays().unwrap();
+        let screeens = get_all_display();
+        let screenshot = take_screenshot_display(screeens[0]).unwrap();
         let img = cc.egui_ctx.load_texture(
             "screenshot",
             egui::ColorImage::from_rgba_unmultiplied(
@@ -149,7 +149,30 @@ impl RustScreenRecorder {
         TopBottomPanel::top("top panel").show(ctx, |ui| {
             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                 self.settings.render_window(ui);
-                if ui.button("New Screen").clicked() {
+                let shortcuts = self
+                    .settings
+                    .get_shortcuts_manager()
+                    .get_shortcuts()
+                    .clone();
+                let qs_shortcut = shortcuts
+                    .get(&shortcuts::KeyCommand::QuickSaveScreenshot)
+                    .unwrap();
+                let s_shortcut = shortcuts
+                    .get(&shortcuts::KeyCommand::SaveScreenshot)
+                    .unwrap();
+                let e_shortcut = shortcuts.get(&shortcuts::KeyCommand::Edit).unwrap();
+                let c_shortcut = shortcuts.get(&shortcuts::KeyCommand::Copy).unwrap();
+                let t_shortcut = shortcuts
+                    .get(&shortcuts::KeyCommand::TakeScreenshot)
+                    .unwrap();
+                if ui.button("New Screen").clicked()
+                    || ui.input_mut(|i| {
+                        i.consume_shortcut(&egui::KeyboardShortcut::new(
+                            t_shortcut.modifier,
+                            t_shortcut.key,
+                        ))
+                    })
+                {
                     match self.screen_index {
                         Some(screen_index) => {
                             if self.timer.unwrap() != 0 {
@@ -176,30 +199,62 @@ impl RustScreenRecorder {
                     }
                 }
                 self.select_timer(ui);
-                if ui.button("Edit").clicked() {
+                if ui.button("Edit").clicked()
+                    || ui.input_mut(|i| {
+                        i.consume_shortcut(&egui::KeyboardShortcut::new(
+                            e_shortcut.modifier,
+                            e_shortcut.key,
+                        ))
+                    })
+                {
                     self.edit = Mood::Edit;
+                    if self.flag == 0 {
+                        self.flag = 1;
+                        self.property.draw = Some(0);
+                    }
                 }
-                if ui.button("Save").clicked() {
+                if ui.button("Save").clicked()
+                    || ui.input_mut(|i| {
+                        i.consume_shortcut(&egui::KeyboardShortcut::new(
+                            qs_shortcut.modifier,
+                            qs_shortcut.key,
+                        ))
+                    })
+                {
                     save_image(&self.settings, &self.screenshot);
                 }
 
-                if ui.button("Save as").clicked() {
+                if ui.button("Save as").clicked()
+                    || ui.input_mut(|i| {
+                        i.consume_shortcut(&egui::KeyboardShortcut::new(
+                            s_shortcut.modifier,
+                            s_shortcut.key,
+                        ))
+                    })
+                {
                     save_as_image(&self.settings, &self.screenshot, &self.selected_ext);
                 }
                 if ui.button("Settings").clicked() {
                     self.settings.show_window();
                 }
-                if ui.button("Copy").clicked() {
+                if ui.button("Copy").clicked()
+                    || ui.input_mut(|i| {
+                        i.consume_shortcut(&egui::KeyboardShortcut::new(
+                            c_shortcut.modifier,
+                            c_shortcut.key,
+                        ))
+                    })
+                {
                     copy_image(&self.screenshot);
                 }
                 self.select_monitor(ui);
                 //TODO move to settings
                 // self.select_save_as_ext(ui);
             });
+            if self.edit == Mood::Edit {
+                self.show_edit(ctx, frame);
+            }
         });
-        if self.edit == Mood::Edit {
-            self.show_edit(ctx, frame);
-        }
     }
     fn show_edit(&mut self, ctx: &Context, frame: &mut eframe::Frame) {
         TopBottomPanel::top("bottom panel").show(ctx, |ui| {
