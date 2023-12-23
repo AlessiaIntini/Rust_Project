@@ -4,6 +4,7 @@ use crate::utility::screenshots::{
     get_all_display, take_screenshot_all_displays, take_screenshot_area, take_screenshot_display,
 };
 use std::path::PathBuf;
+use std::time::Duration;
 mod mod_screen;
 use self::mod_screen::*;
 
@@ -45,6 +46,12 @@ enum TypeEdit {
     None,
 }
 
+enum ScreenshotType {
+    AllScreens,
+    ScreenArea,
+    SelectedScreen,
+}
+
 struct RustScreenRecorder {
     screen_index: Option<u8>,
     image: TextureHandle,
@@ -75,6 +82,8 @@ struct RustScreenRecorder {
     window_height: Option<u32>,
     border: Option<i32>,
     selected_ext: ImageFormat,
+    is_taking_screenshot: bool,
+    screenshot_type: ScreenshotType,
 }
 
 impl RustScreenRecorder {
@@ -141,12 +150,18 @@ impl RustScreenRecorder {
             window_width: Some(0),
             border: Some(0),
             selected_ext: ImageFormat::Png,
+            is_taking_screenshot: false,
+            screenshot_type: ScreenshotType::SelectedScreen,
         }
     }
     //main menu
     fn show_menu(&mut self, ctx: &Context, frame: &mut eframe::Frame) {
         self.screens = get_all_display();
         TopBottomPanel::top("top panel").show(ctx, |ui| {
+            if self.edit == Mood::Edit {
+                self.show_edit(ctx, frame);
+                return;
+            }
             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                 self.settings.render_window(ui);
                 let shortcuts = self
@@ -173,30 +188,14 @@ impl RustScreenRecorder {
                         ))
                     })
                 {
-                    match self.screen_index {
-                        Some(screen_index) => {
-                            if self.timer.unwrap() != 0 {
-                                std::thread::sleep(std::time::Duration::from_secs(
-                                    self.timer.unwrap() as u64,
-                                ));
-                            }
-                            self.screenshot = take_screenshot_display(
-                                self.screens[screen_index as usize].clone(),
-                            );
-                            self.image = ctx.load_texture(
-                                "screenshot",
-                                egui::ColorImage::from_rgba_unmultiplied(
-                                    [
-                                        self.screenshot.as_ref().unwrap().width() as usize,
-                                        self.screenshot.as_ref().unwrap().height() as usize,
-                                    ],
-                                    self.screenshot.as_ref().unwrap().as_bytes(),
-                                ),
-                                Default::default(),
-                            );
-                        }
-                        None => (),
+                    if self.timer.unwrap() != 0 {
+                        std::thread::sleep(std::time::Duration::from_secs(
+                            self.timer.unwrap() as u64
+                        ));
                     }
+                    self.is_taking_screenshot = true;
+                    self.screenshot_type = ScreenshotType::AllScreens;
+                    frame.set_visible(false);
                 }
                 self.select_timer(ui);
                 if ui.button("Edit").clicked()
@@ -251,14 +250,17 @@ impl RustScreenRecorder {
                 //TODO move to settings
                 // self.select_save_as_ext(ui);
             });
-            if self.edit == Mood::Edit {
-                self.show_edit(ctx, frame);
-            }
         });
     }
     fn show_edit(&mut self, ctx: &Context, frame: &mut eframe::Frame) {
         TopBottomPanel::top("bottom panel").show(ctx, |ui| {
             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
+                let shortcuts = self
+                    .settings
+                    .get_shortcuts_manager()
+                    .get_shortcuts()
+                    .clone();
+                let e_shortcut = shortcuts.get(&shortcuts::KeyCommand::Edit).unwrap();
                 if ui.button("Shape").clicked() {
                     self.draw_shape = true;
                     self.draw_draw = false;
@@ -409,7 +411,14 @@ impl RustScreenRecorder {
                     self.vec_shape = Vec::new();
                 }
 
-                if ui.button("Exit").clicked() {
+                if ui.button("Exit").clicked()
+                    || ui.input_mut(|i| {
+                        i.consume_shortcut(&egui::KeyboardShortcut::new(
+                            e_shortcut.modifier,
+                            e_shortcut.key,
+                        ))
+                    })
+                {
                     self.draw_shape = false;
                     self.draw_draw = false;
                     self.draw_text = false;
@@ -644,6 +653,47 @@ impl RustScreenRecorder {
 
 impl eframe::App for RustScreenRecorder {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        if self.is_taking_screenshot {
+            self.is_taking_screenshot = false;
+            std::thread::sleep(Duration::from_millis(250));
+            match self.screenshot_type {
+                ScreenshotType::AllScreens => {
+                    let screenshot = take_screenshot_all_displays();
+                    self.image = ctx.load_texture(
+                        "screenshot",
+                        egui::ColorImage::from_rgba_unmultiplied(
+                            [
+                                screenshot.as_ref().unwrap().width() as usize,
+                                screenshot.as_ref().unwrap().height() as usize,
+                            ],
+                            screenshot.as_ref().unwrap().as_bytes(),
+                        ),
+                        Default::default(),
+                    );
+                }
+                ScreenshotType::ScreenArea => {}
+                ScreenshotType::SelectedScreen => match self.screen_index {
+                    Some(screen_index) => {
+                        self.screenshot =
+                            take_screenshot_display(self.screens[screen_index as usize].clone());
+                        self.image = ctx.load_texture(
+                            "screenshot",
+                            egui::ColorImage::from_rgba_unmultiplied(
+                                [
+                                    self.screenshot.as_ref().unwrap().width() as usize,
+                                    self.screenshot.as_ref().unwrap().height() as usize,
+                                ],
+                                self.screenshot.as_ref().unwrap().as_bytes(),
+                            ),
+                            Default::default(),
+                        );
+                    }
+                    None => (),
+                },
+            }
+            frame.set_visible(true);
+            return;
+        }
         self.show_menu(ctx, frame);
         egui::CentralPanel::default().show(ctx, |ui| {
             if self.property.filled {
