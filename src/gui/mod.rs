@@ -1,4 +1,5 @@
 use crate::utility::draw::*;
+mod settings;
 use crate::utility::screenshots::{
     get_all_display, take_screenshot_all_displays, take_screenshot_area, take_screenshot_display,
 };
@@ -46,7 +47,7 @@ struct RustScreenRecorder {
     image: TextureHandle,
     timer: Option<i64>,
     screenshot: Option<DynamicImage>,
-    path: Option<PathBuf>,
+    settings: settings::SettingsHandler,
     edit: Mood,       // se è in fase di modifica
     type_e: TypeEdit, //per il tipo di edit che c'è
     vec_shape: Vec<Shape>,
@@ -71,7 +72,6 @@ struct RustScreenRecorder {
 
 impl RustScreenRecorder {
     fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        // cc.egui_ctx.set_visuals(egui::Visuals::light());
         let screenshot = take_screenshot_all_displays().unwrap();
         let img = cc.egui_ctx.load_texture(
             "screenshot",
@@ -81,13 +81,6 @@ impl RustScreenRecorder {
             ),
             Default::default(),
         );
-        let pic_dir = match dirs::picture_dir() {
-            Some(path) => path,
-            None => {
-                eprintln!("Unable to determine home directory");
-                dirs::home_dir().unwrap()
-            }
-        };
 
         // Customize egui here with cc.egui_ctx.set_fonts and cc.egui_ctx.set_visuals.
         // Restore app state using cc.storage (requires the "persistence" feature).
@@ -98,7 +91,7 @@ impl RustScreenRecorder {
             image: img,
             timer: Some(0),
             screenshot: Some(screenshot),
-            path: Some(pic_dir),
+            settings: settings::SettingsHandler::new(),
             edit: Mood::None,
             type_e: TypeEdit::None,
             vec_shape: Vec::new(),
@@ -143,7 +136,91 @@ impl RustScreenRecorder {
         self.screens = get_all_display();
         TopBottomPanel::top("top panel").show(ctx, |ui| {
             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
-                if ui.button("New Screen").clicked() {
+                self.settings.render_window(ui);
+                // if ui.button("Screen area").clicked() {
+                //     match self.screen_index {
+                //         Some(screen_index) => {
+                //             if self.timer.unwrap() != 0 {
+                //                 std::thread::sleep(std::time::Duration::from_secs(
+                //                     self.timer.unwrap() as u64,
+                //                 ));
+                //             }
+                //             self.screenshot = take_screenshot_area(
+                //                 self.screens[screen_index as usize].clone(),
+                //                 100,
+                //                 100,
+                //                 100,
+                //                 100,
+                //             );
+                //             self.image = ctx.load_texture(
+                //                 "screenshot",
+                //                 egui::ColorImage::from_rgba_unmultiplied(
+                //                     [
+                //                         self.screenshot.as_ref().unwrap().width() as usize,
+                //                         self.screenshot.as_ref().unwrap().height() as usize,
+                //                     ],
+                //                     self.screenshot.as_ref().unwrap().as_bytes(),
+                //                 ),
+                //                 Default::default(),
+                //             );
+                //         }
+                //         None => (),
+                //     }
+                // }
+
+                if ui.button("Edit").clicked() {
+                    self.edit = Mood::Edit;
+                }
+                if ui.button("Save").clicked() {
+                    self.save_image();
+                }
+
+                if ui.button("Save as").clicked() {
+                    self.save_as_image();
+                }
+                if ui.button("Settings").clicked() {
+                    self.settings.show_window();
+                }
+                if ui.button("Copy").clicked() {
+                    self.copy_image();
+                }
+            });
+        });
+        if self.edit == Mood::Edit {
+            self.show_edit(ctx);
+        }
+    }
+    fn show_edit(&mut self, ctx: &Context) {
+        TopBottomPanel::top("bottom panel").show(ctx, |ui| {
+            self.border = Some(ui.available_size().y as i32);
+            ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
+                //self.shape=Some(0);
+                egui::ComboBox::from_label("")
+                    .width(80.0)
+                    .selected_text(self.shape.as_ref().unwrap().to_string())
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut self.shape, Some(0), "cicle");
+                        ui.selectable_value(&mut self.shape, Some(1), "square");
+                        ui.selectable_value(&mut self.shape, Some(2), "arrow");
+                    });
+                ui.separator();
+                ui.add(egui::Slider::new(&mut self.color.red, 0..=255).text("Red"));
+                ui.add(egui::Slider::new(&mut self.color.green, 0..=255).text("Green"));
+                ui.add(egui::Slider::new(&mut self.color.blue, 0..=255).text("Blue"));
+                if self.shape.unwrap() >= 0 {
+                    draw::create_figure(
+                        self.vec_shape.as_mut(),
+                        ctx,
+                        self.shape.unwrap(),
+                        self.color,
+                    );
+                }
+
+                if ui.button("Text").clicked() {}
+                if ui.button("Cut").clicked() {}
+                if ui.button("Cancel").clicked() {}
+                if ui.button("Back").clicked() {}
+                if ui.button("Save").clicked() {
                     match self.screen_index {
                         Some(screen_index) => {
                             if self.timer.unwrap() != 0 {
@@ -576,62 +653,48 @@ impl RustScreenRecorder {
                     .on_hover_text("Delay screenshot");
             });
     }
+    fn save_as_image(&mut self) {
+        let path = FileDialog::new()
+            .add_filter("PNG", &["png"])
+            .add_filter("JPG", &["jpg"])
+            .add_filter("GIF", &["gif"])
+            .add_filter("BMP", &["bmp"])
+            .set_directory(self.settings.get_settings().screenshot_path.clone())
+            .set_file_name(format!(
+                "screenshot_{}",
+                chrono::Local::now().format("%Y_%m_%d_%H_%M_%S").to_string()
+            ))
+            .save_file();
+        match path {
+            Some(path) => {
+                self.screenshot.as_ref().unwrap().save(path).unwrap();
+            }
+            None => {}
+        }
+    }
+    fn save_image(&mut self) {
+        let mut p: PathBuf = self.settings.get_settings().screenshot_path.clone();
+        p = p.join(format!(
+            "screenshot_{}.{}",
+            chrono::Local::now().format("%Y_%m_%d_%H_%M_%S").to_string(),
+            self.settings.get_settings().get_screenshot_default_ext()
+        ));
+        //TODO: notify the user if the file exists
+        self.screenshot.as_ref().unwrap().save(p.clone()).unwrap();
+    }
+    fn copy_image(&mut self) {
+        let mut clipboard = Clipboard::new().unwrap();
+        let final_image = self.screenshot.as_ref().unwrap().clone();
+        let bytes = final_image.as_bytes();
+        let img = arboard::ImageData {
+            width: final_image.width() as usize,
+            height: final_image.height() as usize,
+            bytes: Cow::from(bytes),
+        };
+        let _done = clipboard.set_image(img);
+    }
 }
-// pub fn cut_figure(
-//     ctx: &egui::Context,
-//     cut: &mut i32,
-//     cutRect: &mut egui::epaint::RectShape,
-//     index: Option<u8>,
-//     timer: Option<i64>,
-//     screens: Vec<screenshots::Screen>,
-//     mut screenshot: Option<DynamicImage>,
-//     mut image: TextureHandle,
-// ) {
-//     if ctx.input(|i| i.pointer.primary_clicked()) {
-//         *cut = 0
-//     }
-//     if ctx.input(|i| i.pointer.primary_down()) {
-//         let pos_start = ctx.input(|i| i.pointer.press_origin().unwrap());
-//         let pos_mouse = ctx.input(|i| i.pointer.hover_pos().unwrap());
-//         let rectangle = egui::epaint::RectShape::new(
-//             egui::Rect {
-//                 min: pos_start,
-//                 max: egui::epaint::pos2(pos_mouse.x, pos_mouse.y),
-//             },
-//             Rounding::ZERO,
-//             Color32::TRANSPARENT,
-//             egui::Stroke {
-//                 width: 10.,
-//                 color: Color32::BLACK,
-//             },
-//         );
-//         *cutRect = rectangle;
-//     }
-//     if ctx.input(|i| i.key_pressed(egui::Key::Enter)) && *cut != -1 {
-//         match index {
-//             Some(index) => {
-//                 if timer.unwrap() != 0 {
-//                     std::thread::sleep(std::time::Duration::from_secs(timer.unwrap() as u64));
-//                 }
-//                 screenshot =
-//                     take_screenshot_area(screens[index as usize].clone(), 100, 100, 100, 100);
-//                 image = ctx.load_texture(
-//                     "screenshot",
-//                     egui::ColorImage::from_rgba_unmultiplied(
-//                         [
-//                             screenshot.as_ref().unwrap().width() as usize,
-//                             screenshot.as_ref().unwrap().height() as usize,
-//                         ],
-//                         &mut screenshot.as_ref().unwrap().as_bytes(),
-//                     ),
-//                     Default::default(),
-//                 );
-//             }
-//             None => (),
-//         }
-//         *cut = -1;
-//     }
-// }
+
 impl eframe::App for RustScreenRecorder {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         self.show_menu(ctx, frame);
