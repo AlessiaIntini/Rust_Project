@@ -1,16 +1,20 @@
-use std::path::PathBuf;
+use crate::gui::settings::ImageFormat;
 use arboard::Clipboard;
-use rfd::FileDialog;
 use image::DynamicImage;
+use rfd::FileDialog;
 use std::borrow::Cow;
+use std::path::PathBuf;
 
-pub fn save_as_image(path:&Option<PathBuf>,screenshot:&Option<DynamicImage>) {
+use super::settings::SettingsHandler;
+
+pub fn save_as_image(
+    settings: &SettingsHandler,
+    screenshot: &Option<DynamicImage>,
+    selected_ext: &ImageFormat,
+) {
     let path = FileDialog::new()
-        .add_filter("PNG", &["png"])
-        .add_filter("JPG", &["jpg"])
-        .add_filter("GIF", &["gif"])
-        .add_filter("BMP", &["bmp"])
-        .set_directory(path.as_ref().unwrap().clone())
+        .add_filter("Image", &["png", "jpg", "gif", "bmp"])
+        .set_directory(settings.get_settings().screenshot_path.clone())
         .set_file_name(format!(
             "screenshot_{}",
             chrono::Local::now().format("%Y_%m_%d_%H_%M_%S").to_string()
@@ -18,30 +22,31 @@ pub fn save_as_image(path:&Option<PathBuf>,screenshot:&Option<DynamicImage>) {
         .save_file();
     match path {
         Some(path) => {
-            match image::save_buffer(
-                path,
-                &screenshot.as_ref().unwrap().as_bytes(),
-                screenshot.as_ref().unwrap().width() as u32,
-                screenshot.as_ref().unwrap().height() as u32,
-                image::ColorType::Rgba8,
-            ) {
-                Ok(_) => println!("Screenshot saved"),
-                Err(err) => println!("{}", err),
+            let p = PathBuf::from(format!(
+                "{}.{}",
+                path.to_string_lossy(),
+                selected_ext.get_ext()
+            ));
+            match screenshot.as_ref().unwrap().save(p) {
+                Ok(_) => {}
+                Err(e) => {
+                    eprintln!("{}", e)
+                }
             }
         }
         None => {}
     }
 }
-pub fn save_image(path:&Option<PathBuf>,screenshot:&Option<DynamicImage>) {
-    let mut p = path.as_ref().unwrap().clone();
+pub fn save_image(settings: &SettingsHandler, screenshot: &Option<DynamicImage>) {
+    let mut p: PathBuf = settings.get_settings().screenshot_path.clone();
     p = p.join(format!(
-        "screenshot_{}.png",
-        chrono::Local::now().format("%Y_%m_%d_%H_%M_%S").to_string()
+        "screenshot_{}.{}",
+        chrono::Local::now().format("%Y_%m_%d_%H_%M_%S").to_string(),
+        settings.get_settings().get_screenshot_default_ext()
     ));
-    //TODO: notify the user if the file exists
     screenshot.as_ref().unwrap().save(p.clone()).unwrap();
 }
-pub fn copy_image(screenshot:&Option<DynamicImage>) {
+pub fn copy_image(screenshot: &Option<DynamicImage>) {
     let mut clipboard = Clipboard::new().unwrap();
     let final_image = screenshot.as_ref().unwrap().clone();
     let bytes = final_image.as_bytes();

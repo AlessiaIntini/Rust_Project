@@ -1,4 +1,4 @@
-use crate::utility::draw::*;
+use crate::utility::draw::{self, *};
 mod settings;
 use crate::utility::screenshots::{
     get_all_display, take_screenshot_all_displays, take_screenshot_area, take_screenshot_display,
@@ -7,6 +7,7 @@ use std::path::PathBuf;
 mod mod_screen;
 use self::mod_screen::*;
 
+use self::settings::ImageFormat;
 use eframe::egui;
 use eframe::epaint::RectShape;
 use egui::{
@@ -14,7 +15,7 @@ use egui::{
     Vec2,
 };
 use image::DynamicImage;
-use self::settings::ImageFormat;
+use rfd::FileDialog;
 
 const SIDE_PANEL_WIDTH: f32 = 255.0;
 
@@ -67,7 +68,7 @@ struct RustScreenRecorder {
     flag: i32,
     draw_text: bool,
     crop: bool,
-    cutRect: RectShape,
+    cut_rect: RectShape,
     cut: i32,
     pos_start: Pos2,
     pos_mouse: Pos2,
@@ -121,7 +122,7 @@ impl RustScreenRecorder {
             draw_draw: false,
             draw_text: false,
             crop: false, //first in filled
-            cutRect: egui::epaint::RectShape::new(
+            cut_rect: egui::epaint::RectShape::new(
                 egui::Rect {
                     min: egui::epaint::pos2(0., 0.),
                     max: egui::epaint::pos2(0., 0.),
@@ -148,90 +149,7 @@ impl RustScreenRecorder {
         TopBottomPanel::top("top panel").show(ctx, |ui| {
             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                 self.settings.render_window(ui);
-                // if ui.button("Screen area").clicked() {
-                //     match self.screen_index {
-                //         Some(screen_index) => {
-                //             if self.timer.unwrap() != 0 {
-                //                 std::thread::sleep(std::time::Duration::from_secs(
-                //                     self.timer.unwrap() as u64,
-                //                 ));
-                //             }
-                //             self.screenshot = take_screenshot_area(
-                //                 self.screens[screen_index as usize].clone(),
-                //                 100,
-                //                 100,
-                //                 100,
-                //                 100,
-                //             );
-                //             self.image = ctx.load_texture(
-                //                 "screenshot",
-                //                 egui::ColorImage::from_rgba_unmultiplied(
-                //                     [
-                //                         self.screenshot.as_ref().unwrap().width() as usize,
-                //                         self.screenshot.as_ref().unwrap().height() as usize,
-                //                     ],
-                //                     self.screenshot.as_ref().unwrap().as_bytes(),
-                //                 ),
-                //                 Default::default(),
-                //             );
-                //         }
-                //         None => (),
-                //     }
-                // }
-
-                if ui.button("Edit").clicked() {
-                    self.edit = Mood::Edit;
-                }
-                if ui.button("Save").clicked() {
-                    self.save_image();
-                }
-
-                if ui.button("Save as").clicked() {
-                    self.save_as_image();
-                }
-                if ui.button("Settings").clicked() {
-                    self.settings.show_window();
-                }
-                if ui.button("Copy").clicked() {
-                    self.copy_image();
-                }
-            });
-        });
-        if self.edit == Mood::Edit {
-            self.show_edit(ctx);
-        }
-    }
-    fn show_edit(&mut self, ctx: &Context) {
-        TopBottomPanel::top("bottom panel").show(ctx, |ui| {
-            self.border = Some(ui.available_size().y as i32);
-            ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
-                //self.shape=Some(0);
-                egui::ComboBox::from_label("")
-                    .width(80.0)
-                    .selected_text(self.shape.as_ref().unwrap().to_string())
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut self.shape, Some(0), "cicle");
-                        ui.selectable_value(&mut self.shape, Some(1), "square");
-                        ui.selectable_value(&mut self.shape, Some(2), "arrow");
-                    });
-                ui.separator();
-                ui.add(egui::Slider::new(&mut self.color.red, 0..=255).text("Red"));
-                ui.add(egui::Slider::new(&mut self.color.green, 0..=255).text("Green"));
-                ui.add(egui::Slider::new(&mut self.color.blue, 0..=255).text("Blue"));
-                if self.shape.unwrap() >= 0 {
-                    draw::create_figure(
-                        self.vec_shape.as_mut(),
-                        ctx,
-                        self.shape.unwrap(),
-                        self.color,
-                    );
-                }
-
-                if ui.button("Text").clicked() {}
-                if ui.button("Cut").clicked() {}
-                if ui.button("Cancel").clicked() {}
-                if ui.button("Back").clicked() {}
-                if ui.button("Save").clicked() {
+                if ui.button("New Screen").clicked() {
                     match self.screen_index {
                         Some(screen_index) => {
                             if self.timer.unwrap() != 0 {
@@ -258,34 +176,30 @@ impl RustScreenRecorder {
                     }
                 }
                 self.select_timer(ui);
-
                 if ui.button("Edit").clicked() {
                     self.edit = Mood::Edit;
-                    if self.flag == 0 {
-                        self.flag = 1;
-                        self.property.draw = Some(0);
-                    }
                 }
                 if ui.button("Save").clicked() {
-                    save_image(&self.path, &self.screenshot);
+                    save_image(&self.settings, &self.screenshot);
                 }
 
                 if ui.button("Save as").clicked() {
-                    save_as_image(&self.path, &self.screenshot);
+                    save_as_image(&self.settings, &self.screenshot, &self.selected_ext);
                 }
                 if ui.button("Settings").clicked() {
-                    // …
+                    self.settings.show_window();
                 }
                 if ui.button("Copy").clicked() {
                     copy_image(&self.screenshot);
                 }
                 self.select_monitor(ui);
+                //TODO move to settings
+                // self.select_save_as_ext(ui);
             });
-
-            if self.edit == Mood::Edit {
-                self.show_edit(ctx, frame);
-            }
         });
+        if self.edit == Mood::Edit {
+            self.show_edit(ctx, frame);
+        }
     }
     fn show_edit(&mut self, ctx: &Context, frame: &mut eframe::Frame) {
         TopBottomPanel::top("bottom panel").show(ctx, |ui| {
@@ -343,7 +257,7 @@ impl RustScreenRecorder {
                                 color: Color32::BLACK,
                             },
                         );
-                        self.cutRect = rectangle;
+                        self.cut_rect = rectangle;
                     }
                     if ctx.input(|i| i.key_pressed(egui::Key::Enter)) && self.cut != -1 {
                         println!("{:?}", ctx.available_rect());
@@ -381,7 +295,7 @@ impl RustScreenRecorder {
                             }
                             None => (),
                         }
-                        self.cutRect = egui::epaint::RectShape::new(
+                        self.cut_rect = egui::epaint::RectShape::new(
                             egui::Rect {
                                 min: egui::epaint::pos2(0., 0.),
                                 max: egui::epaint::pos2(0., 0.),
@@ -536,7 +450,6 @@ impl RustScreenRecorder {
             }
         });
     }
-
     fn show_shape(&mut self, ctx: &Context, frame: &mut eframe::Frame, first: &str, ui: &mut Ui) {
         TopBottomPanel::top("2bottom panel").show(ctx, |ui| {
             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
@@ -630,7 +543,7 @@ impl RustScreenRecorder {
     }
     fn select_monitor(&mut self, ui: &mut Ui) {
         let screens = get_all_display();
-        egui::ComboBox::from_label("Monitor")
+        egui::ComboBox::from_id_source("Monitor")
             .selected_text(format!("Monitor {:?}", self.screen_index.unwrap()))
             .show_ui(ui, |ui| {
                 for (i, display) in screens.iter().enumerate() {
@@ -645,10 +558,6 @@ impl RustScreenRecorder {
                     .on_hover_text("Select display");
                 }
             });
-        ui.label(format!(
-            "You have selected Monitor {}",
-            self.screen_index.unwrap()
-        ));
     }
 
     fn select_timer(&mut self, ui: &mut Ui) {
@@ -675,54 +584,6 @@ impl RustScreenRecorder {
                 ui.selectable_value(&mut self.selected_ext, ImageFormat::Bmp, "BMP");
                 ui.selectable_value(&mut self.selected_ext, ImageFormat::Gif, "GIF");
             });
-    }
-
-    fn save_as_image(&mut self) {
-        let path = FileDialog::new()
-            .add_filter("Image", &["png", "jpg", "gif", "bmp"])
-            .set_directory(self.settings.get_settings().screenshot_path.clone())
-            .set_file_name(format!(
-                "screenshot_{}",
-                chrono::Local::now().format("%Y_%m_%d_%H_%M_%S").to_string()
-            ))
-            .save_file();
-        match path {
-            Some(path) => {
-                let p = PathBuf::from(format!(
-                    "{}.{}",
-                    path.to_string_lossy(),
-                    self.selected_ext.get_ext()
-                ));
-                match self.screenshot.as_ref().unwrap().save(p) {
-                    Ok(_) => {}
-                    Err(e) => {
-                        eprintln!("{}", e)
-                    }
-                }
-            }
-            None => {}
-        }
-    }
-    fn save_image(&mut self) {
-        let mut p: PathBuf = self.settings.get_settings().screenshot_path.clone();
-        p = p.join(format!(
-            "screenshot_{}.{}",
-            chrono::Local::now().format("%Y_%m_%d_%H_%M_%S").to_string(),
-            self.settings.get_settings().get_screenshot_default_ext()
-        ));
-        //TODO: notify the user if the file exists
-        self.screenshot.as_ref().unwrap().save(p.clone()).unwrap();
-    }
-    fn copy_image(&mut self) {
-        let mut clipboard = Clipboard::new().unwrap();
-        let final_image = self.screenshot.as_ref().unwrap().clone();
-        let bytes = final_image.as_bytes();
-        let img = arboard::ImageData {
-            width: final_image.width() as usize,
-            height: final_image.height() as usize,
-            bytes: Cow::from(bytes),
-        };
-        let _done = clipboard.set_image(img);
     }
 }
 
@@ -762,7 +623,6 @@ impl eframe::App for RustScreenRecorder {
             ui.vertical_centered_justified(|ui| {
                 let available_size = ui.available_size();
                 let image_size = self.image.size_vec2();
-
                 let aspect_ratio = image_size.x / image_size.y;
                 let (image_width, image_height) =
                     if available_size.x / aspect_ratio < available_size.y {
@@ -783,20 +643,7 @@ impl eframe::App for RustScreenRecorder {
                     self.image.id(),
                     Vec2::new(image_width, image_height),
                 )));
-                // ui.add(
-                //     egui::Image::new((self.image.id(), Vec2::new(image_width, image_height)))
-                //         .maintain_aspect_ratio(true)
-                //         .fit_to_exact_size(Vec2::new(
-                //             frame.info().window_info.size.x,
-                //             frame.info().window_info.size.y,
-                //         )),
-                // )
-                // .with_new_rect(egui::Rect::from_min_size(
-                //     egui::Pos2::new(x_offset - 255.0, y_offset),
-                //     Vec2::new(image_width, image_height),
-                // ));
-
-                crate::utility::draw::draw_rect(ui, &self.cutRect);
+                crate::utility::draw::draw_rect(ui, &self.cut_rect);
                 crate::utility::draw::draw(ui, self.vec_shape.as_mut());
             });
         });
