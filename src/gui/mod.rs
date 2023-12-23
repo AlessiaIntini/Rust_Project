@@ -1,18 +1,18 @@
-use std::{borrow::Cow, default, path::PathBuf};
-mod draw;
-use self::draw::ProperDraw;
+use crate::utility::draw::*;
 use crate::utility::screenshots::{
     get_all_display, take_screenshot_all_displays, take_screenshot_area, take_screenshot_display,
 };
-use arboard::Clipboard;
+use std::path::PathBuf;
+mod mod_screen;
+use self::mod_screen::*;
+
 use eframe::egui;
 use eframe::epaint::RectShape;
 use egui::{
-    Align, Button, Color32, Context, FontFamily, Layout, Margin, Rounding, TextureHandle,
-    TopBottomPanel, Ui, Vec2, Pos2
+    Align, Color32, Context, FontFamily, Layout, Pos2, Rounding, TextureHandle, TopBottomPanel, Ui,
+    Vec2,
 };
 use image::DynamicImage;
-use rfd::FileDialog;
 
 pub fn main_window() -> eframe::Result<()> {
     let window_option = eframe::NativeOptions {
@@ -49,7 +49,7 @@ struct RustScreenRecorder {
     path: Option<PathBuf>,
     edit: Mood,       // se è in fase di modifica
     type_e: TypeEdit, //per il tipo di edit che c'è
-    vec_shape: Vec<draw::Shape>,
+    vec_shape: Vec<Shape>,
     property: ProperDraw,
     font: FontFamily,
     draw_dim_variable: i32,
@@ -63,7 +63,7 @@ struct RustScreenRecorder {
     flag: i32,
     draw_text: bool,
     crop: bool,
-    cutRect: egui::epaint::RectShape,
+    cutRect: RectShape,
     cut: i32,
     pos_start: Pos2,
     pos_mouse: Pos2,
@@ -110,11 +110,11 @@ impl RustScreenRecorder {
             flag: 0,
             text: "".to_string(),
             font: FontFamily::Monospace,
-            property: ProperDraw::new(
+            property: crate::utility::draw::ProperDraw::new(
                 Some(-1),
-                draw::Rgb::new(0, 0, 0),
+                crate::utility::draw::Rgb::new(0, 0, 0),
                 false,
-                draw::Rgb::new(0, 0, 0),
+                crate::utility::draw::Rgb::new(0, 0, 0),
                 10.0,
             ),
             draw_dim_variable: 0,
@@ -138,6 +138,7 @@ impl RustScreenRecorder {
             pos_mouse: Pos2::new(0.0, 0.0),
         }
     }
+    //main menu
     fn show_menu(&mut self, ctx: &Context, frame: &mut eframe::Frame) {
         self.screens = get_all_display();
         TopBottomPanel::top("top panel").show(ctx, |ui| {
@@ -178,23 +179,22 @@ impl RustScreenRecorder {
                     }
                 }
                 if ui.button("Save").clicked() {
-                    self.save_image();
+                    save_image(&self.path, &self.screenshot);
                 }
 
                 if ui.button("Save as").clicked() {
-                    self.save_as_image();
+                    save_as_image(&self.path, &self.screenshot);
                 }
                 if ui.button("Settings").clicked() {
                     // …
                 }
                 if ui.button("Copy").clicked() {
-                    self.copy_image();
+                    copy_image(&self.screenshot);
                 }
                 self.select_monitor(ui);
             });
 
             if self.edit == Mood::Edit {
-                //self.type_e = TypeEdit::None;
                 self.show_edit(ctx, frame);
             }
         });
@@ -227,7 +227,7 @@ impl RustScreenRecorder {
                     self.type_e = TypeEdit::Text;
                     self.crop = false;
                 }
-               
+
                 if ui.button("Crop").clicked() {
                     self.draw_shape = false;
                     self.draw_draw = false;
@@ -324,11 +324,15 @@ impl RustScreenRecorder {
                     self.draw_text = false;
                     self.draw_draw = false;
                     self.crop = false;
-                    let display_info = self.screens[self.screen_index.unwrap() as usize].clone().display_info;
+                    let display_info = self.screens[self.screen_index.unwrap() as usize]
+                        .clone()
+                        .display_info;
                     self.screenshot = take_screenshot_area(
                         self.screens[self.screen_index.unwrap() as usize].clone(),
                         0. as i32,
-                        display_info.height as i32 - ctx.available_rect().max.y as i32+ self.border_size.y as i32 - 1,
+                        display_info.height as i32 - ctx.available_rect().max.y as i32
+                            + self.border_size.y as i32
+                            - 1,
                         ctx.available_rect().max.x as u32,
                         ctx.available_rect().max.y as u32 - self.border_size.y as u32,
                     );
@@ -425,7 +429,7 @@ impl RustScreenRecorder {
                             }
 
                             self.property.draw = Some(3);
-                            draw::create_figure(
+                            crate::utility::draw::create_figure(
                                 self.vec_shape.as_mut(),
                                 ctx,
                                 self.property,
@@ -482,7 +486,7 @@ impl RustScreenRecorder {
                 }
 
                 if self.property.draw.unwrap() >= 0 {
-                    draw::create_figure(
+                    crate::utility::draw::create_figure(
                         self.vec_shape.as_mut(),
                         ctx,
                         self.property,
@@ -521,7 +525,7 @@ impl RustScreenRecorder {
                 if ui.button("Exit").clicked() {
                     self.type_e = TypeEdit::None;
                 }
-                draw::create_figure(
+                crate::utility::draw::create_figure(
                     self.vec_shape.as_mut(),
                     ctx,
                     self.property,
@@ -572,113 +576,64 @@ impl RustScreenRecorder {
                     .on_hover_text("Delay screenshot");
             });
     }
-    fn save_as_image(&mut self) {
-        let path = FileDialog::new()
-            .add_filter("PNG", &["png"])
-            .add_filter("JPG", &["jpg"])
-            .add_filter("GIF", &["gif"])
-            .add_filter("BMP", &["bmp"])
-            .set_directory(self.path.as_ref().unwrap().clone())
-            .set_file_name(format!(
-                "screenshot_{}",
-                chrono::Local::now().format("%Y_%m_%d_%H_%M_%S").to_string()
-            ))
-            .save_file();
-        match path {
-            Some(path) => {
-                match image::save_buffer(
-                    path,
-                    &self.screenshot.as_ref().unwrap().as_bytes(),
-                    self.screenshot.as_ref().unwrap().width() as u32,
-                    self.screenshot.as_ref().unwrap().height() as u32,
-                    image::ColorType::Rgba8,
-                ) {
-                    Ok(_) => println!("Screenshot saved"),
-                    Err(err) => println!("{}", err),
-                }
-            }
-            None => {}
-        }
-    }
-    fn save_image(&mut self) {
-        let mut p = self.path.as_ref().unwrap().clone();
-        p = p.join(format!(
-            "screenshot_{}.png",
-            chrono::Local::now().format("%Y_%m_%d_%H_%M_%S").to_string()
-        ));
-        //TODO: notify the user if the file exists
-        self.screenshot.as_ref().unwrap().save(p.clone()).unwrap();
-    }
-    fn copy_image(&mut self) {
-        let mut clipboard = Clipboard::new().unwrap();
-        let final_image = self.screenshot.as_ref().unwrap().clone();
-        let bytes = final_image.as_bytes();
-        let img = arboard::ImageData {
-            width: final_image.width() as usize,
-            height: final_image.height() as usize,
-            bytes: Cow::from(bytes),
-        };
-        let _done = clipboard.set_image(img);
-    }
 }
-pub fn cut_figure(
-    ctx: &egui::Context,
-    cut: &mut i32,
-    cutRect: &mut egui::epaint::RectShape,
-    index: Option<u8>,
-    timer: Option<i64>,
-    screens: Vec<screenshots::Screen>,
-    mut screenshot: Option<DynamicImage>,
-    mut image: TextureHandle,
-) {
-    if ctx.input(|i| i.pointer.primary_clicked()) {
-        *cut = 0
-    }
-    if ctx.input(|i| i.pointer.primary_down()) {
-        let pos_start = ctx.input(|i| i.pointer.press_origin().unwrap());
-        let pos_mouse = ctx.input(|i| i.pointer.hover_pos().unwrap());
-        let rectangle = egui::epaint::RectShape::new(
-            egui::Rect {
-                min: pos_start,
-                max: egui::epaint::pos2(pos_mouse.x, pos_mouse.y),
-            },
-            Rounding::ZERO,
-            Color32::TRANSPARENT,
-            egui::Stroke {
-                width: 10.,
-                color: Color32::BLACK,
-            },
-        );
-        *cutRect = rectangle;
-    }
-    if ctx.input(|i| i.key_pressed(egui::Key::Enter)) && *cut != -1 {
-        match index {
-            Some(index) => {
-                if timer.unwrap() != 0 {
-                    std::thread::sleep(std::time::Duration::from_secs(timer.unwrap() as u64));
-                }
-                screenshot =
-                    take_screenshot_area(screens[index as usize].clone(), 100, 100, 100, 100);
-                image = ctx.load_texture(
-                    "screenshot",
-                    egui::ColorImage::from_rgba_unmultiplied(
-                        [
-                            screenshot.as_ref().unwrap().width() as usize,
-                            screenshot.as_ref().unwrap().height() as usize,
-                        ],
-                        &mut screenshot.as_ref().unwrap().as_bytes(),
-                    ),
-                    Default::default(),
-                );
-            }
-            None => (),
-        }
-        *cut = -1;
-    }
-}
+// pub fn cut_figure(
+//     ctx: &egui::Context,
+//     cut: &mut i32,
+//     cutRect: &mut egui::epaint::RectShape,
+//     index: Option<u8>,
+//     timer: Option<i64>,
+//     screens: Vec<screenshots::Screen>,
+//     mut screenshot: Option<DynamicImage>,
+//     mut image: TextureHandle,
+// ) {
+//     if ctx.input(|i| i.pointer.primary_clicked()) {
+//         *cut = 0
+//     }
+//     if ctx.input(|i| i.pointer.primary_down()) {
+//         let pos_start = ctx.input(|i| i.pointer.press_origin().unwrap());
+//         let pos_mouse = ctx.input(|i| i.pointer.hover_pos().unwrap());
+//         let rectangle = egui::epaint::RectShape::new(
+//             egui::Rect {
+//                 min: pos_start,
+//                 max: egui::epaint::pos2(pos_mouse.x, pos_mouse.y),
+//             },
+//             Rounding::ZERO,
+//             Color32::TRANSPARENT,
+//             egui::Stroke {
+//                 width: 10.,
+//                 color: Color32::BLACK,
+//             },
+//         );
+//         *cutRect = rectangle;
+//     }
+//     if ctx.input(|i| i.key_pressed(egui::Key::Enter)) && *cut != -1 {
+//         match index {
+//             Some(index) => {
+//                 if timer.unwrap() != 0 {
+//                     std::thread::sleep(std::time::Duration::from_secs(timer.unwrap() as u64));
+//                 }
+//                 screenshot =
+//                     take_screenshot_area(screens[index as usize].clone(), 100, 100, 100, 100);
+//                 image = ctx.load_texture(
+//                     "screenshot",
+//                     egui::ColorImage::from_rgba_unmultiplied(
+//                         [
+//                             screenshot.as_ref().unwrap().width() as usize,
+//                             screenshot.as_ref().unwrap().height() as usize,
+//                         ],
+//                         &mut screenshot.as_ref().unwrap().as_bytes(),
+//                     ),
+//                     Default::default(),
+//                 );
+//             }
+//             None => (),
+//         }
+//         *cut = -1;
+//     }
+// }
 impl eframe::App for RustScreenRecorder {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        //     egui::CentralPanel::frame(self, egui::Frame { inner_margin: (Margin{left:20.0,right: 20.0,top:20.0,bottom:20.0}), outer_margin: (Margin{left:20.0,right: 20.0,top:20.0,bottom:20.0}), rounding: (Rounding{nw:10.0,ne:10.0,sw:10.0,se:10.0}), shadow: (), fill: (), stroke: () })
         self.show_menu(ctx, frame);
         egui::CentralPanel::default().show(ctx, |ui| {
             if self.property.filled {
@@ -710,7 +665,7 @@ impl eframe::App for RustScreenRecorder {
                 frame.info().window_info.size.x,
                 frame.info().window_info.size.y,
             );
-            ui. vertical_centered_justified(|ui| {
+            ui.vertical_centered_justified(|ui| {
                 let available_size = ui.available_size();
                 let image_size = self.image.size_vec2();
 
@@ -730,7 +685,10 @@ impl eframe::App for RustScreenRecorder {
                 );
                 self.image_size.x = image_width;
                 self.image_size.y = image_height;
-                ui.add(egui::Image::new((self.image.id(), Vec2::new(image_width, image_height))));
+                ui.add(egui::Image::new((
+                    self.image.id(),
+                    Vec2::new(image_width, image_height),
+                )));
                 // ui.add(
                 //     egui::Image::new((self.image.id(), Vec2::new(image_width, image_height)))
                 //         .maintain_aspect_ratio(true)
@@ -744,8 +702,8 @@ impl eframe::App for RustScreenRecorder {
                 //     Vec2::new(image_width, image_height),
                 // ));
 
-                draw::draw_rect(ui, &self.cutRect);
-                draw::draw(ui, self.vec_shape.as_mut());
+                crate::utility::draw::draw_rect(ui, &self.cutRect);
+                crate::utility::draw::draw(ui, self.vec_shape.as_mut());
             });
         });
     }
