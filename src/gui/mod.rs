@@ -386,12 +386,15 @@ impl RustScreenRecorder {
                     let display_info = self.screens[self.screen_index.unwrap() as usize]
                         .clone()
                         .display_info;
+                    println!("Contex {:?}", ctx.available_rect());
+                    println!("Border: x= {:?}, y= {:?}", self.border_size.x, self.border_size.y);
+                    println!("Image width: {:?}", self.image_size);
+                    println!("Display info {:?}", display_info);
+                    println!("ctx: {:?}", ctx.available_rect());
                     self.screenshot = take_screenshot_area(
                         self.screens[self.screen_index.unwrap() as usize].clone(),
-                        0. as i32,
-                        display_info.height as i32 - ctx.available_rect().max.y as i32
-                            + self.border_size.y as i32
-                            - 1,
+                        display_info.width as i32 - self.image_size.y as i32,
+                        display_info.height as i32 - ctx.available_rect().max.y as i32 + self.border_size.y as i32,
                         ctx.available_rect().max.x as u32,
                         ctx.available_rect().max.y as u32 - self.border_size.y as u32,
                     );
@@ -495,6 +498,9 @@ impl RustScreenRecorder {
                             }
 
                             self.property.draw = Some(3);
+                            let display_info = self.screens[self.screen_index.unwrap() as usize]
+                                .clone()
+                                .display_info;
                             crate::utility::draw::create_figure(
                                 self.vec_shape.as_mut(),
                                 ctx,
@@ -506,6 +512,8 @@ impl RustScreenRecorder {
                                 self.border_size.y,
                                 self.image_size.x,
                                 self.image_size.y,
+                                display_info.width,
+                                display_info.height
                             );
                         });
                     });
@@ -549,8 +557,11 @@ impl RustScreenRecorder {
                     self.type_e = TypeEdit::None;
                     self.property.filled = false;
                 }
-
+                
                 if self.property.draw.unwrap() >= 0 {
+                    let display_info = self.screens[self.screen_index.unwrap() as usize]
+                        .clone()
+                        .display_info;
                     crate::utility::draw::create_figure(
                         self.vec_shape.as_mut(),
                         ctx,
@@ -562,6 +573,8 @@ impl RustScreenRecorder {
                         self.border_size.y,
                         self.image_size.x,
                         self.image_size.y,
+                        display_info.width,
+                        display_info.height
                     );
                 }
             });
@@ -590,6 +603,9 @@ impl RustScreenRecorder {
                 if ui.button("Exit").clicked() {
                     self.type_e = TypeEdit::None;
                 }
+                let display_info = self.screens[self.screen_index.unwrap() as usize]
+                        .clone()
+                        .display_info;
                 crate::utility::draw::create_figure(
                     self.vec_shape.as_mut(),
                     ctx,
@@ -601,6 +617,8 @@ impl RustScreenRecorder {
                     self.border_size.y,
                     self.image_size.x,
                     self.image_size.y,
+                    display_info.width,
+                    display_info.height
                 );
             });
         });

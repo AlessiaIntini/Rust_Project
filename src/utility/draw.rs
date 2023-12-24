@@ -135,7 +135,9 @@ pub fn create_figure(
     x: f32,
     y: f32,
     image_width: f32,
-    image_hight: f32,
+    image_height: f32,
+    display_width: u32,
+    display_height: u32
 ) {
     if ctx.input(|i| i.pointer.primary_clicked()) {
         *draw_dim_variable = 0
@@ -147,10 +149,14 @@ pub fn create_figure(
         if property.filled {
             fill = property.color_fill.convert_in_color_32();
         }
-        let x1 = (x / 2.0) - 31.0;
-        let x2 = ((x / 2.0) + image_width) + 31.0;
-        let y1 = y - 8.0;
-        let y2 = image_hight + 39.0;
+        // println!("Contex {:?}", ctx.available_rect());
+        // println!("Border: x= {:?}, y= {:?}", x, y);
+        // println!("Image width: {:?}, Image height: {:?}", image_width, image_height);
+        // println!("Display width: {:?}, Display height: {:?}", display_width, display_height);
+        let x1 = x / 2.0;
+        let x2 = (x / 2.0) + image_width;
+        let y1 = display_height  as f32 - ctx.available_rect().max.y;
+        let y2 = display_height  as f32 - ctx.available_rect().max.y + image_height;
         if pos_start.y > y1
             && pos_start.y < y2
             && pos_start.x > x1
