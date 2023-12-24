@@ -1,10 +1,7 @@
 mod settings;
 use crate::utility::{
     draw::{ProperDraw, Shape},
-    screenshots::{
-        get_all_display, take_screenshot_all_displays, take_screenshot_area,
-        take_screenshot_display,
-    },
+    screenshots::{get_all_display, take_screenshot_area, take_screenshot_display},
 };
 use std::time::Duration;
 mod mod_screen;
@@ -44,12 +41,6 @@ enum TypeEdit {
     None,
 }
 
-enum ScreenshotType {
-    AllScreens,
-    ScreenArea,
-    SelectedScreen,
-}
-
 struct RustScreenRecorder {
     screen_index: Option<u8>,
     image: TextureHandle,
@@ -76,11 +67,7 @@ struct RustScreenRecorder {
     cut: i32,
     pos_start: Pos2,
     pos_mouse: Pos2,
-    window_width: Option<u32>,
-    window_height: Option<u32>,
-    border: Option<i32>,
     is_taking_screenshot: bool,
-    screenshot_type: ScreenshotType,
 }
 
 impl RustScreenRecorder {
@@ -143,11 +130,7 @@ impl RustScreenRecorder {
             cut: -1,
             pos_start: Pos2::new(0.0, 0.0),
             pos_mouse: Pos2::new(0.0, 0.0),
-            window_height: Some(0),
-            window_width: Some(0),
-            border: Some(0),
             is_taking_screenshot: false,
-            screenshot_type: ScreenshotType::SelectedScreen,
         }
     }
     //main menu
@@ -190,7 +173,6 @@ impl RustScreenRecorder {
                         ));
                     }
                     self.is_taking_screenshot = true;
-                    self.screenshot_type = ScreenshotType::AllScreens;
                     frame.set_visible(false);
                 }
                 self.select_timer(ui);
@@ -443,7 +425,6 @@ impl RustScreenRecorder {
                     TopBottomPanel::top("3bottom panel").show(ctx, |ui| {
                         ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                             ui.text_edit_singleline(&mut self.text);
-
                             ui.separator();
                             ui.add(
                                 egui::Slider::new(&mut self.property.width, 0.0..=50.)
@@ -640,40 +621,23 @@ impl eframe::App for RustScreenRecorder {
         if self.is_taking_screenshot {
             self.is_taking_screenshot = false;
             std::thread::sleep(Duration::from_millis(250));
-            match self.screenshot_type {
-                ScreenshotType::AllScreens => {
-                    let screenshot = take_screenshot_all_displays();
+            match self.screen_index {
+                Some(screen_index) => {
+                    self.screenshot =
+                        take_screenshot_display(self.screens[screen_index as usize].clone());
                     self.image = ctx.load_texture(
                         "screenshot",
                         egui::ColorImage::from_rgba_unmultiplied(
                             [
-                                screenshot.as_ref().unwrap().width() as usize,
-                                screenshot.as_ref().unwrap().height() as usize,
+                                self.screenshot.as_ref().unwrap().width() as usize,
+                                self.screenshot.as_ref().unwrap().height() as usize,
                             ],
-                            screenshot.as_ref().unwrap().as_bytes(),
+                            self.screenshot.as_ref().unwrap().as_bytes(),
                         ),
                         Default::default(),
                     );
                 }
-                ScreenshotType::ScreenArea => {}
-                ScreenshotType::SelectedScreen => match self.screen_index {
-                    Some(screen_index) => {
-                        self.screenshot =
-                            take_screenshot_display(self.screens[screen_index as usize].clone());
-                        self.image = ctx.load_texture(
-                            "screenshot",
-                            egui::ColorImage::from_rgba_unmultiplied(
-                                [
-                                    self.screenshot.as_ref().unwrap().width() as usize,
-                                    self.screenshot.as_ref().unwrap().height() as usize,
-                                ],
-                                self.screenshot.as_ref().unwrap().as_bytes(),
-                            ),
-                            Default::default(),
-                        );
-                    }
-                    None => (),
-                },
+                None => (),
             }
             frame.set_visible(true);
             return;
