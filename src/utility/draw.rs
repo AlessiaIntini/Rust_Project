@@ -156,7 +156,7 @@ pub fn create_figure(
         let x1 = x / 2.0;
         let x2 = (x / 2.0) + image_width;
         let y1 = display_height  as f32 - image_height;
-        let y2 = display_height as f32;
+        let y2 = display_height as f32 -80.;
         if pos_start.y > y1
             && pos_start.y < y2
             && pos_start.x > x1
