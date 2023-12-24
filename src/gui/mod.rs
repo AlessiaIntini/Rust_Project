@@ -393,10 +393,10 @@ impl RustScreenRecorder {
                     println!("ctx: {:?}", ctx.available_rect());
                     self.screenshot = take_screenshot_area(
                         self.screens[self.screen_index.unwrap() as usize].clone(),
-                        display_info.width as i32 - self.image_size.y as i32,
-                        display_info.height as i32 - ctx.available_rect().max.y as i32 + self.border_size.y as i32,
-                        ctx.available_rect().max.x as u32,
-                        ctx.available_rect().max.y as u32 - self.border_size.y as u32,
+                        (self.border_size.x/2.) as i32,
+                        display_info.height as i32 - self.image_size.y as i32,
+                        self.image_size.x as u32,
+                        self.image_size.y as u32,
                     );
                     self.image = ctx.load_texture(
                         "screenshot",
