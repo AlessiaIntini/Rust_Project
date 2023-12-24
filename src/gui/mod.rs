@@ -1,23 +1,21 @@
-use crate::utility::draw::{self, *};
 mod settings;
-use crate::utility::screenshots::{
-    get_all_display, take_screenshot_all_displays, take_screenshot_area, take_screenshot_display,
+use crate::utility::{
+    draw::{ProperDraw, Shape},
+    screenshots::{
+        get_all_display, take_screenshot_all_displays, take_screenshot_area,
+        take_screenshot_display,
+    },
 };
-use std::path::PathBuf;
 use std::time::Duration;
 mod mod_screen;
 use self::mod_screen::*;
-
-use self::settings::ImageFormat;
 use crate::utility::shortcuts;
-use eframe::egui;
-use eframe::epaint::RectShape;
+use eframe::{egui, epaint::RectShape};
 use egui::{
     Align, Color32, Context, FontFamily, Layout, Pos2, Rounding, TextureHandle, TopBottomPanel, Ui,
     Vec2,
 };
 use image::DynamicImage;
-use rfd::FileDialog;
 
 pub fn main_window() -> eframe::Result<()> {
     let window_option = eframe::NativeOptions {
@@ -81,7 +79,6 @@ struct RustScreenRecorder {
     window_width: Option<u32>,
     window_height: Option<u32>,
     border: Option<i32>,
-    selected_ext: ImageFormat,
     is_taking_screenshot: bool,
     screenshot_type: ScreenshotType,
 }
@@ -149,7 +146,6 @@ impl RustScreenRecorder {
             window_height: Some(0),
             window_width: Some(0),
             border: Some(0),
-            selected_ext: ImageFormat::Png,
             is_taking_screenshot: false,
             screenshot_type: ScreenshotType::SelectedScreen,
         }
@@ -231,7 +227,7 @@ impl RustScreenRecorder {
                         ))
                     })
                 {
-                    save_as_image(&self.settings, &self.screenshot, &self.selected_ext);
+                    save_as_image(&self.settings, &self.screenshot);
                 }
                 if ui.button("Settings").clicked() {
                     self.settings.show_window();
@@ -438,10 +434,10 @@ impl RustScreenRecorder {
                         2 => first = "Arrow",
                         _ => (),
                     }
-                    self.show_shape(ctx, frame, first, ui);
+                    self.show_shape(ctx, first);
                 }
                 TypeEdit::Draw => {
-                    self.show_draw(ctx, frame, ui);
+                    self.show_draw(ctx);
                 }
                 TypeEdit::Text => {
                     TopBottomPanel::top("3bottom panel").show(ctx, |ui| {
@@ -514,7 +510,7 @@ impl RustScreenRecorder {
             }
         });
     }
-    fn show_shape(&mut self, ctx: &Context, frame: &mut eframe::Frame, first: &str, ui: &mut Ui) {
+    fn show_shape(&mut self, ctx: &Context, first: &str) {
         TopBottomPanel::top("2bottom panel").show(ctx, |ui| {
             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                 egui::ComboBox::from_label("")
@@ -567,7 +563,7 @@ impl RustScreenRecorder {
             });
         });
     }
-    fn show_draw(&mut self, ctx: &Context, frame: &mut eframe::Frame, ui: &mut Ui) {
+    fn show_draw(&mut self, ctx: &Context) {
         TopBottomPanel::top("3bottom panel").show(ctx, |ui| {
             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                 self.property.draw = Some(4);
@@ -635,18 +631,6 @@ impl RustScreenRecorder {
                     .on_hover_text("Delay screenshot");
                 ui.selectable_value(&mut self.timer, Some(10), "🕓 10 sec")
                     .on_hover_text("Delay screenshot");
-            });
-    }
-
-    fn select_save_as_ext(&mut self, ui: &mut Ui) {
-        egui::ComboBox::from_id_source("save_as_ext")
-            .width(80.0)
-            .selected_text(format!("{}", self.selected_ext.get_ext().to_uppercase()))
-            .show_ui(ui, |ui| {
-                ui.selectable_value(&mut self.selected_ext, ImageFormat::Png, "PNG");
-                ui.selectable_value(&mut self.selected_ext, ImageFormat::Jpg, "JPG");
-                ui.selectable_value(&mut self.selected_ext, ImageFormat::Bmp, "BMP");
-                ui.selectable_value(&mut self.selected_ext, ImageFormat::Gif, "GIF");
             });
     }
 }
@@ -720,7 +704,6 @@ impl eframe::App for RustScreenRecorder {
                     );
                 });
             }
-
             self.window_size = Vec2::new(
                 frame.info().window_info.size.x,
                 frame.info().window_info.size.y,
@@ -735,9 +718,6 @@ impl eframe::App for RustScreenRecorder {
                     } else {
                         (available_size.y * aspect_ratio, available_size.y)
                     };
-                let x_offset = (available_size.x - image_width) / 2.0;
-                let y_offset = (available_size.y - image_height) / 2.0;
-
                 self.border_size = Vec2::new(
                     self.window_size.x - image_width,
                     self.window_size.y - image_height,
