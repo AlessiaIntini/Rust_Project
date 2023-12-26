@@ -138,7 +138,7 @@ impl RustScreenRecorder {
         self.screens = get_all_display();
         TopBottomPanel::top("top panel").show(ctx, |ui| {
             if self.edit == Mood::Edit {
-                self.show_edit(ctx, frame);
+                self.show_edit(ctx);
                 return;
             }
             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
@@ -225,12 +225,10 @@ impl RustScreenRecorder {
                     copy_image(&self.screenshot);
                 }
                 self.select_monitor(ui);
-                //TODO move to settings
-                // self.select_save_as_ext(ui);
             });
         });
     }
-    fn show_edit(&mut self, ctx: &Context, frame: &mut eframe::Frame) {
+    fn show_edit(&mut self, ctx: &Context) {
         TopBottomPanel::top("bottom panel").show(ctx, |ui| {
             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                 let shortcuts = self
@@ -618,6 +616,9 @@ impl RustScreenRecorder {
 
 impl eframe::App for RustScreenRecorder {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        if self.edit == Mood::Edit {
+            frame.set_maximized(true);
+        }
         if self.is_taking_screenshot {
             self.is_taking_screenshot = false;
             std::thread::sleep(Duration::from_millis(250));
