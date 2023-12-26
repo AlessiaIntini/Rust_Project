@@ -149,20 +149,19 @@ pub fn create_figure(
         if property.filled {
             fill = property.color_fill.convert_in_color_32();
         }
-        // println!("Contex {:?}", ctx.available_rect());
-        // println!("Border: x= {:?}, y= {:?}", x, y);
-        // println!("Image width: {:?}, Image height: {:?}", image_width, image_height);
-        // println!("Display width: {:?}, Display height: {:?}", display_width, display_height);
-        
+        println!("Contex avaible rect {:?}", ctx.available_rect());
+        println!("Border: x= {:?}, y= {:?}", x, y);
+        println!("Image width: {:?}, Image height: {:?}", image_width, image_height);
+        println!("Display width: {:?}, Display height: {:?}", display_width, display_height);
         let x1 = x / 2.0;
         let x2 = (x / 2.0) + image_width;
-        let y1 = display_height  as f32 - image_height;
-        let y2 = display_height as f32 -80.;
+        let y1 = y;
+        let y2 = y + image_height;
         if pos_start.y > y1
             && pos_start.y < y2
             && pos_start.x > x1
             && pos_start.x < x2
-            && pos_mouse.y > y
+            && pos_mouse.y > y1
             && pos_mouse.y < y2
             && pos_mouse.x > x1
             && pos_mouse.x < x2
