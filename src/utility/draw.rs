@@ -149,6 +149,7 @@ pub fn create_figure(
         if property.filled {
             fill = property.color_fill.convert_in_color_32();
         }
+       println!("disegno");
         println!("Contex avaible rect {:?}", ctx.available_rect());
         println!("Border: x= {:?}, y= {:?}", x, y);
         println!("Image width: {:?}, Image height: {:?}", image_width, image_height);
