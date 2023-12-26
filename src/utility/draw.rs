@@ -153,6 +153,7 @@ pub fn create_figure(
         // println!("Border: x= {:?}, y= {:?}", x, y);
         // println!("Image width: {:?}, Image height: {:?}", image_width, image_height);
         // println!("Display width: {:?}, Display height: {:?}", display_width, display_height);
+        
         let x1 = x / 2.0;
         let x2 = (x / 2.0) + image_width;
         let y1 = display_height  as f32 - image_height;
@@ -181,6 +182,7 @@ pub fn create_figure(
                         if *draw_dim_variable == 0 {
                             vec_shape.push(Shape::Circle(circle));
                             *draw_dim_variable = 1;
+                            println!("Circle: Pos start: {:?}, Pos mouse: {:?}", pos_start, pos_mouse);
                         } else {
                             let i = vec_shape.len();
                             vec_shape[i - 1] = Shape::Circle(circle);
@@ -282,6 +284,7 @@ pub fn create_figure(
                             },
                         );
                         vec_shape.push(Shape::FreeHand(line));
+                        println!("Free hand: Pos start: {:?}, Pos mouse: {:?}", pos_start, pos_mouse);
                     }
                 }
                 _ => print!("Error"),
