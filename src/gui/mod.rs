@@ -392,12 +392,11 @@ impl RustScreenRecorder {
                     println!("Image width: {:?}", self.image_size);
                     println!("Display info {:?}", display_info);
                     println!("ctx: {:?}", ctx.available_rect());
-                    print!("diviso prima{:?}",((display_info.width as i32-ctx.available_rect().max.x as i32)/2)+((ctx.available_rect().max.x as i32-self.image_size.x as i32) /2));
-                    println!("diviso dopo{:?}",((display_info.width as i32-ctx.available_rect().max.x as i32)+((ctx.available_rect().max.x as i32-self.image_size.x as i32)) /2));
                     self.screenshot = take_screenshot_area(
                         self.screens[self.screen_index.unwrap() as usize].clone(),
                        (display_info.width as i32-ctx.available_rect().max.x as i32)+((ctx.available_rect().max.x as i32-self.image_size.x as i32)) /2,
-                        display_info.height as i32 - self.image_size.y as i32 - 7,
+                       (display_info.height as i32-ctx.available_rect().max.y as i32)/2+((ctx.available_rect().max.y as i32-self.image_size.y as i32))-7,
+                        //display_info.height as i32 - self.image_size.y as i32 - 7,
                         self.image_size.x as u32,
                         self.image_size.y as u32,
                     );
