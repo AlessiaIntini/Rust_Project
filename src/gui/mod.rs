@@ -332,8 +332,9 @@ impl RustScreenRecorder {
                                     self.screens[index as usize].clone(),
                                     (self.pos_start.x + width - ctx.available_rect().max.x) as i32
                                         + display_info.width as i32,
-                                    (self.pos_start.y + width - ctx.available_rect().max.y) as i32
-                                        + display_info.height as i32,
+                                    // (self.pos_start.y + width - ctx.available_rect().max.y) as i32
+                                    //     + display_info.height as i32,
+                                    (self.pos_start.y + width) as i32 + (display_info.height as i32-ctx.available_rect().max.y as i32)/2  ,
                                     (self.pos_mouse.x - self.pos_start.x - 1.8 * width) as u32,
                                     (self.pos_mouse.y - self.pos_start.y - width) as u32,
                                 );
