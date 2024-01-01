@@ -159,13 +159,14 @@ impl RustScreenRecorder {
                 let t_shortcut = shortcuts
                     .get(&shortcuts::KeyCommand::TakeScreenshot)
                     .unwrap();
-                if ui.button("New Screen").clicked()
-                    || ui.input_mut(|i| {
-                        i.consume_shortcut(&egui::KeyboardShortcut::new(
-                            t_shortcut.modifier,
-                            t_shortcut.key,
-                        ))
-                    })
+                if !self.settings.show_settings_window
+                    && (ui.button("New Screen").clicked()
+                        || ui.input_mut(|i| {
+                            i.consume_shortcut(&egui::KeyboardShortcut::new(
+                                t_shortcut.modifier,
+                                t_shortcut.key,
+                            ))
+                        }))
                 {
                     if self.timer.unwrap() != 0 {
                         std::thread::sleep(std::time::Duration::from_secs(
@@ -176,13 +177,14 @@ impl RustScreenRecorder {
                     frame.set_visible(false);
                 }
                 self.select_timer(ui);
-                if ui.button("Edit").clicked()
-                    || ui.input_mut(|i| {
-                        i.consume_shortcut(&egui::KeyboardShortcut::new(
-                            e_shortcut.modifier,
-                            e_shortcut.key,
-                        ))
-                    })
+                if !self.settings.show_settings_window
+                    && (ui.button("Edit").clicked()
+                        || ui.input_mut(|i| {
+                            i.consume_shortcut(&egui::KeyboardShortcut::new(
+                                e_shortcut.modifier,
+                                e_shortcut.key,
+                            ))
+                        }))
                 {
                     self.edit = Mood::Edit;
                     if self.flag == 0 {
@@ -190,37 +192,40 @@ impl RustScreenRecorder {
                         self.property.draw = Some(0);
                     }
                 }
-                if ui.button("Save").clicked()
-                    || ui.input_mut(|i| {
-                        i.consume_shortcut(&egui::KeyboardShortcut::new(
-                            qs_shortcut.modifier,
-                            qs_shortcut.key,
-                        ))
-                    })
+                if !self.settings.show_settings_window
+                    && (ui.button("Save").clicked()
+                        || ui.input_mut(|i| {
+                            i.consume_shortcut(&egui::KeyboardShortcut::new(
+                                qs_shortcut.modifier,
+                                qs_shortcut.key,
+                            ))
+                        }))
                 {
                     save_image(&self.settings, &self.screenshot);
                 }
 
-                if ui.button("Save as").clicked()
-                    || ui.input_mut(|i| {
-                        i.consume_shortcut(&egui::KeyboardShortcut::new(
-                            s_shortcut.modifier,
-                            s_shortcut.key,
-                        ))
-                    })
+                if !self.settings.show_settings_window
+                    && (ui.button("Save as").clicked()
+                        || ui.input_mut(|i| {
+                            i.consume_shortcut(&egui::KeyboardShortcut::new(
+                                s_shortcut.modifier,
+                                s_shortcut.key,
+                            ))
+                        }))
                 {
                     save_as_image(&self.settings, &self.screenshot);
                 }
                 if ui.button("Settings").clicked() {
                     self.settings.show_window();
                 }
-                if ui.button("Copy").clicked()
-                    || ui.input_mut(|i| {
-                        i.consume_shortcut(&egui::KeyboardShortcut::new(
-                            c_shortcut.modifier,
-                            c_shortcut.key,
-                        ))
-                    })
+                if !self.settings.show_settings_window
+                    && (ui.button("Copy").clicked()
+                        || ui.input_mut(|i| {
+                            i.consume_shortcut(&egui::KeyboardShortcut::new(
+                                c_shortcut.modifier,
+                                c_shortcut.key,
+                            ))
+                        }))
                 {
                     copy_image(&self.screenshot);
                 }

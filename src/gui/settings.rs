@@ -18,7 +18,7 @@ pub enum ImageFormat {
 }
 
 pub struct SettingsHandler {
-    pub show_window: bool,
+    pub show_settings_window: bool,
     settings: Settings,
 }
 
@@ -95,7 +95,7 @@ impl Settings {
 impl SettingsHandler {
     pub fn new() -> Self {
         Self {
-            show_window: false,
+            show_settings_window: false,
             settings: Settings::new(),
         }
     }
@@ -108,7 +108,7 @@ impl SettingsHandler {
     pub fn render_window(&mut self, ui: &mut egui::Ui) {
         let mut tmp_shortcuts = self.settings.shortcut_manager.get_shortcuts().to_owned();
         egui::Window::new("Settings")
-            .open(&mut self.show_window)
+            .open(&mut self.show_settings_window)
             .resizable(false)
             .collapsible(false)
             .show(ui.ctx(), |ui| {
@@ -249,6 +249,6 @@ impl SettingsHandler {
             });
     }
     pub fn show_window(&mut self) {
-        self.show_window = true;
+        self.show_settings_window = true;
     }
 }
