@@ -1,4 +1,3 @@
-use crate::gui::settings::ImageFormat;
 use arboard::Clipboard;
 use image::DynamicImage;
 use rfd::FileDialog;
@@ -7,11 +6,7 @@ use std::path::PathBuf;
 
 use super::settings::SettingsHandler;
 
-pub fn save_as_image(
-    settings: &SettingsHandler,
-    screenshot: &Option<DynamicImage>,
-    selected_ext: &ImageFormat,
-) {
+pub fn save_as_image(settings: &SettingsHandler, screenshot: &Option<DynamicImage>) {
     let path = FileDialog::new()
         .add_filter("Image", &["png", "jpg", "gif", "bmp"])
         .set_directory(settings.get_settings().screenshot_path.clone())
@@ -25,7 +20,7 @@ pub fn save_as_image(
             let p = PathBuf::from(format!(
                 "{}.{}",
                 path.to_string_lossy(),
-                selected_ext.get_ext()
+                settings.get_settings().get_screenshot_default_ext()
             ));
             match screenshot.as_ref().unwrap().save(p) {
                 Ok(_) => {}
