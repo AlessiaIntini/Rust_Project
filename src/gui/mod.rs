@@ -1,23 +1,18 @@
-use crate::utility::draw::{self, *};
 mod settings;
-use crate::utility::screenshots::{
-    get_all_display, take_screenshot_all_displays, take_screenshot_area, take_screenshot_display,
+use crate::utility::{
+    draw::{ProperDraw, Shape},
+    screenshots::{get_all_display, take_screenshot_area, take_screenshot_display},
 };
-use std::path::PathBuf;
 use std::time::Duration;
 mod mod_screen;
 use self::mod_screen::*;
-
-use self::settings::ImageFormat;
 use crate::utility::shortcuts;
-use eframe::egui;
-use eframe::epaint::RectShape;
+use eframe::{egui, epaint::RectShape};
 use egui::{
     Align, Color32, Context, FontFamily, Layout, Pos2, Rounding, TextureHandle, TopBottomPanel, Ui,
     Vec2,
 };
 use image::DynamicImage;
-use rfd::FileDialog;
 
 pub fn main_window() -> eframe::Result<()> {
     let window_option = eframe::NativeOptions {
@@ -46,12 +41,6 @@ enum TypeEdit {
     None,
 }
 
-enum ScreenshotType {
-    AllScreens,
-    ScreenArea,
-    SelectedScreen,
-}
-
 struct RustScreenRecorder {
     screen_index: Option<u8>,
     image: TextureHandle,
@@ -78,12 +67,7 @@ struct RustScreenRecorder {
     cut: i32,
     pos_start: Pos2,
     pos_mouse: Pos2,
-    window_width: Option<u32>,
-    window_height: Option<u32>,
-    border: Option<i32>,
-    selected_ext: ImageFormat,
     is_taking_screenshot: bool,
-    screenshot_type: ScreenshotType,
 }
 
 impl RustScreenRecorder {
@@ -146,12 +130,7 @@ impl RustScreenRecorder {
             cut: -1,
             pos_start: Pos2::new(0.0, 0.0),
             pos_mouse: Pos2::new(0.0, 0.0),
-            window_height: Some(0),
-            window_width: Some(0),
-            border: Some(0),
-            selected_ext: ImageFormat::Png,
             is_taking_screenshot: false,
-            screenshot_type: ScreenshotType::SelectedScreen,
         }
     }
     //main menu
@@ -159,7 +138,7 @@ impl RustScreenRecorder {
         self.screens = get_all_display();
         TopBottomPanel::top("top panel").show(ctx, |ui| {
             if self.edit == Mood::Edit {
-                self.show_edit(ctx, frame);
+                self.show_edit(ctx);
                 return;
             }
             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
@@ -180,13 +159,14 @@ impl RustScreenRecorder {
                 let t_shortcut = shortcuts
                     .get(&shortcuts::KeyCommand::TakeScreenshot)
                     .unwrap();
-                if ui.button("New Screen").clicked()
-                    || ui.input_mut(|i| {
-                        i.consume_shortcut(&egui::KeyboardShortcut::new(
-                            t_shortcut.modifier,
-                            t_shortcut.key,
-                        ))
-                    })
+                if !self.settings.show_settings_window
+                    && (ui.button("New Screen").clicked()
+                        || ui.input_mut(|i| {
+                            i.consume_shortcut(&egui::KeyboardShortcut::new(
+                                t_shortcut.modifier,
+                                t_shortcut.key,
+                            ))
+                        }))
                 {
                     if self.timer.unwrap() != 0 {
                         std::thread::sleep(std::time::Duration::from_secs(
@@ -194,17 +174,17 @@ impl RustScreenRecorder {
                         ));
                     }
                     self.is_taking_screenshot = true;
-                    self.screenshot_type = ScreenshotType::AllScreens;
                     frame.set_visible(false);
                 }
                 self.select_timer(ui);
-                if ui.button("Edit").clicked()
-                    || ui.input_mut(|i| {
-                        i.consume_shortcut(&egui::KeyboardShortcut::new(
-                            e_shortcut.modifier,
-                            e_shortcut.key,
-                        ))
-                    })
+                if !self.settings.show_settings_window
+                    && (ui.button("Edit").clicked()
+                        || ui.input_mut(|i| {
+                            i.consume_shortcut(&egui::KeyboardShortcut::new(
+                                e_shortcut.modifier,
+                                e_shortcut.key,
+                            ))
+                        }))
                 {
                     self.edit = Mood::Edit;
                     if self.flag == 0 {
@@ -212,47 +192,48 @@ impl RustScreenRecorder {
                         self.property.draw = Some(0);
                     }
                 }
-                if ui.button("Save").clicked()
-                    || ui.input_mut(|i| {
-                        i.consume_shortcut(&egui::KeyboardShortcut::new(
-                            qs_shortcut.modifier,
-                            qs_shortcut.key,
-                        ))
-                    })
+                if !self.settings.show_settings_window
+                    && (ui.button("Save").clicked()
+                        || ui.input_mut(|i| {
+                            i.consume_shortcut(&egui::KeyboardShortcut::new(
+                                qs_shortcut.modifier,
+                                qs_shortcut.key,
+                            ))
+                        }))
                 {
                     save_image(&self.settings, &self.screenshot);
                 }
 
-                if ui.button("Save as").clicked()
-                    || ui.input_mut(|i| {
-                        i.consume_shortcut(&egui::KeyboardShortcut::new(
-                            s_shortcut.modifier,
-                            s_shortcut.key,
-                        ))
-                    })
+                if !self.settings.show_settings_window
+                    && (ui.button("Save as").clicked()
+                        || ui.input_mut(|i| {
+                            i.consume_shortcut(&egui::KeyboardShortcut::new(
+                                s_shortcut.modifier,
+                                s_shortcut.key,
+                            ))
+                        }))
                 {
-                    save_as_image(&self.settings, &self.screenshot, &self.selected_ext);
+                    save_as_image(&self.settings, &self.screenshot);
                 }
                 if ui.button("Settings").clicked() {
                     self.settings.show_window();
                 }
-                if ui.button("Copy").clicked()
-                    || ui.input_mut(|i| {
-                        i.consume_shortcut(&egui::KeyboardShortcut::new(
-                            c_shortcut.modifier,
-                            c_shortcut.key,
-                        ))
-                    })
+                if !self.settings.show_settings_window
+                    && (ui.button("Copy").clicked()
+                        || ui.input_mut(|i| {
+                            i.consume_shortcut(&egui::KeyboardShortcut::new(
+                                c_shortcut.modifier,
+                                c_shortcut.key,
+                            ))
+                        }))
                 {
                     copy_image(&self.screenshot);
                 }
                 self.select_monitor(ui);
-                //TODO move to settings
-                // self.select_save_as_ext(ui);
             });
         });
     }
-    fn show_edit(&mut self, ctx: &Context, frame: &mut eframe::Frame) {
+    fn show_edit(&mut self, ctx: &Context) {
         TopBottomPanel::top("bottom panel").show(ctx, |ui| {
             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                 let shortcuts = self
@@ -457,16 +438,15 @@ impl RustScreenRecorder {
                         2 => first = "Arrow",
                         _ => (),
                     }
-                    self.show_shape(ctx, frame, first, ui);
+                    self.show_shape(ctx, first);
                 }
                 TypeEdit::Draw => {
-                    self.show_draw(ctx, frame, ui);
+                    self.show_draw(ctx);
                 }
                 TypeEdit::Text => {
                     TopBottomPanel::top("3bottom panel").show(ctx, |ui| {
                         ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                             ui.text_edit_singleline(&mut self.text);
-
                             ui.separator();
                             ui.add(
                                 egui::Slider::new(&mut self.property.width, 0.0..=50.)
@@ -538,7 +518,7 @@ impl RustScreenRecorder {
             }
         });
     }
-    fn show_shape(&mut self, ctx: &Context, frame: &mut eframe::Frame, first: &str, ui: &mut Ui) {
+    fn show_shape(&mut self, ctx: &Context, first: &str) {
         TopBottomPanel::top("2bottom panel").show(ctx, |ui| {
             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                 egui::ComboBox::from_label("")
@@ -596,7 +576,7 @@ impl RustScreenRecorder {
             });
         });
     }
-    fn show_draw(&mut self, ctx: &Context, frame: &mut eframe::Frame, ui: &mut Ui) {
+    fn show_draw(&mut self, ctx: &Context) {
         TopBottomPanel::top("3bottom panel").show(ctx, |ui| {
             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                 self.property.draw = Some(4);
@@ -671,59 +651,33 @@ impl RustScreenRecorder {
                     .on_hover_text("Delay screenshot");
             });
     }
-
-    fn select_save_as_ext(&mut self, ui: &mut Ui) {
-        egui::ComboBox::from_id_source("save_as_ext")
-            .width(80.0)
-            .selected_text(format!("{}", self.selected_ext.get_ext().to_uppercase()))
-            .show_ui(ui, |ui| {
-                ui.selectable_value(&mut self.selected_ext, ImageFormat::Png, "PNG");
-                ui.selectable_value(&mut self.selected_ext, ImageFormat::Jpg, "JPG");
-                ui.selectable_value(&mut self.selected_ext, ImageFormat::Bmp, "BMP");
-                ui.selectable_value(&mut self.selected_ext, ImageFormat::Gif, "GIF");
-            });
-    }
 }
 
 impl eframe::App for RustScreenRecorder {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        if self.edit == Mood::Edit {
+            frame.set_maximized(true);
+        }
         if self.is_taking_screenshot {
             self.is_taking_screenshot = false;
             std::thread::sleep(Duration::from_millis(250));
-            match self.screenshot_type {
-                ScreenshotType::AllScreens => {
-                    let screenshot = take_screenshot_all_displays();
+            match self.screen_index {
+                Some(screen_index) => {
+                    self.screenshot =
+                        take_screenshot_display(self.screens[screen_index as usize].clone());
                     self.image = ctx.load_texture(
                         "screenshot",
                         egui::ColorImage::from_rgba_unmultiplied(
                             [
-                                screenshot.as_ref().unwrap().width() as usize,
-                                screenshot.as_ref().unwrap().height() as usize,
+                                self.screenshot.as_ref().unwrap().width() as usize,
+                                self.screenshot.as_ref().unwrap().height() as usize,
                             ],
-                            screenshot.as_ref().unwrap().as_bytes(),
+                            self.screenshot.as_ref().unwrap().as_bytes(),
                         ),
                         Default::default(),
                     );
                 }
-                ScreenshotType::ScreenArea => {}
-                ScreenshotType::SelectedScreen => match self.screen_index {
-                    Some(screen_index) => {
-                        self.screenshot =
-                            take_screenshot_display(self.screens[screen_index as usize].clone());
-                        self.image = ctx.load_texture(
-                            "screenshot",
-                            egui::ColorImage::from_rgba_unmultiplied(
-                                [
-                                    self.screenshot.as_ref().unwrap().width() as usize,
-                                    self.screenshot.as_ref().unwrap().height() as usize,
-                                ],
-                                self.screenshot.as_ref().unwrap().as_bytes(),
-                            ),
-                            Default::default(),
-                        );
-                    }
-                    None => (),
-                },
+                None => (),
             }
             frame.set_visible(true);
             return;
@@ -754,7 +708,6 @@ impl eframe::App for RustScreenRecorder {
                     );
                 });
             }
-
             self.window_size = Vec2::new(
                 frame.info().window_info.size.x,
                 frame.info().window_info.size.y,
@@ -769,9 +722,6 @@ impl eframe::App for RustScreenRecorder {
                     } else {
                         (available_size.y * aspect_ratio, available_size.y)
                     };
-                let x_offset = (available_size.x - image_width) / 2.0;
-                let y_offset = (available_size.y - image_height) / 2.0;
-
                 self.border_size = Vec2::new(
                     self.window_size.x - image_width,
                     self.window_size.y - image_height,
