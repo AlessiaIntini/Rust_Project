@@ -283,19 +283,33 @@ impl RustScreenRecorder {
                     if ctx.input(|i| i.pointer.primary_down()) {
                         self.pos_start = ctx.input(|i| i.pointer.press_origin().unwrap());
                         self.pos_mouse = ctx.input(|i| i.pointer.hover_pos().unwrap());
-                        let rectangle = egui::epaint::RectShape::new(
-                            egui::Rect {
-                                min: self.pos_start,
-                                max: egui::epaint::pos2(self.pos_mouse.x, self.pos_mouse.y),
-                            },
-                            Rounding::ZERO,
-                            Color32::TRANSPARENT,
-                            egui::Stroke {
-                                width: 1.,
-                                color: Color32::BLACK,
-                            },
-                        );
-                        self.cut_rect = rectangle;
+                        let x1 = self.border_size.x / 2.;
+                        let x2 = (self.border_size.x / 2.) + self.image_size.x;
+                        let y1 = self.border_size.y;
+                        let y2 = self.border_size.y + self.image_size.y;
+                        if self.pos_start.y > y1
+                            && self.pos_start.y < y2
+                            && self.pos_start.x > x1
+                            && self.pos_start.x < x2
+                            && self.pos_mouse.y > y1
+                            && self.pos_mouse.y < y2
+                            && self.pos_mouse.x > x1
+                            && self.pos_mouse.x < x2
+                        {
+                            let rectangle = egui::epaint::RectShape::new(
+                                egui::Rect {
+                                    min: self.pos_start,
+                                    max: egui::epaint::pos2(self.pos_mouse.x, self.pos_mouse.y),
+                                },
+                                Rounding::ZERO,
+                                Color32::TRANSPARENT,
+                                egui::Stroke {
+                                    width: 1.,
+                                    color: Color32::BLACK,
+                                },
+                            );
+                            self.cut_rect = rectangle;
+                        }
                     }
                     if ctx.input(|i| i.key_pressed(egui::Key::Enter)) && self.cut != -1 {
                         println!("{:?}", ctx.available_rect());
@@ -384,14 +398,13 @@ impl RustScreenRecorder {
                     println!("Image width: {:?}", self.image_size);
                     println!("Display info {:?}", display_info);
                     println!("ctx: {:?}", ctx.available_rect());
-                    let mut y=0;
-                    if self.image_size.y<self.image_size.x{
-                        y=(display_info.height as i32 - ctx.available_rect().max.y as i32) / 2
-                        + (ctx.available_rect().max.y as i32 - self.image_size.y as i32)/2
-                        +5
-                        ;
-                    }else{
-                       y=(display_info.height as i32 - ctx.available_rect().max.y as i32) / 2
+                    let mut y = 0;
+                    if self.image_size.y < self.image_size.x {
+                        y = (display_info.height as i32 - ctx.available_rect().max.y as i32) / 2
+                            + (ctx.available_rect().max.y as i32 - self.image_size.y as i32) / 2
+                            + 5;
+                    } else {
+                        y = (display_info.height as i32 - ctx.available_rect().max.y as i32) / 2
                             + (ctx.available_rect().max.y as i32 - self.image_size.y as i32)
                             - 7;
                     }
@@ -400,7 +413,7 @@ impl RustScreenRecorder {
                         (display_info.width as i32 - ctx.available_rect().max.x as i32)
                             + (ctx.available_rect().max.x as i32 - self.image_size.x as i32) / 2,
                         y,
-                         //display_info.height as i32 - self.image_size.y as i32 - 7,
+                        //display_info.height as i32 - self.image_size.y as i32 - 7,
                         self.image_size.x as u32,
                         self.image_size.y as u32,
                     );
@@ -737,13 +750,12 @@ impl eframe::App for RustScreenRecorder {
                 );
                 self.image_size.x = image_width;
                 self.image_size.y = image_height;
-                
-               
-                ui.add(egui::Image::new((self.image.id(), Vec2::new(image_width, image_height)))
-                       .maintain_aspect_ratio(true)
-                    );
-               
-            
+
+                ui.add(
+                    egui::Image::new((self.image.id(), Vec2::new(image_width, image_height)))
+                        .maintain_aspect_ratio(true),
+                );
+
                 // ui.add(
                 //     egui::Image::new((self.image.id(), Vec2::new(image_width, image_height)))
                 //         .maintain_aspect_ratio(true)
