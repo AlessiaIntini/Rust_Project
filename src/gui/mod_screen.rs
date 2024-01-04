@@ -17,11 +17,15 @@ pub fn save_as_image(settings: &SettingsHandler, screenshot: &Option<DynamicImag
         .save_file();
     match path {
         Some(path) => {
-            let p = PathBuf::from(format!(
-                "{}.{}",
-                path.to_string_lossy(),
-                settings.get_settings().get_screenshot_default_ext()
-            ));
+            let p = if cfg!(target_os = "macos") {
+                PathBuf::from(path)
+            } else {
+                PathBuf::from(format!(
+                    "{}.{}",
+                    path.to_string_lossy(),
+                    settings.get_settings().get_screenshot_default_ext()
+                ))
+            };
             match screenshot.as_ref().unwrap().save(p) {
                 Ok(_) => {}
                 Err(e) => {
