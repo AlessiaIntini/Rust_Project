@@ -744,9 +744,18 @@ impl eframe::App for RustScreenRecorder {
                     } else {
                         (available_size.y * aspect_ratio, available_size.y)
                     };
+                // self.border_size = Vec2::new(
+                //     self.window_size.x - image_width,
+                //     self.window_size.y - image_height,
+                // );
+                let display_info =
+                self.screens[self.screen_index.unwrap() as usize].clone().display_info;
                 self.border_size = Vec2::new(
-                    self.window_size.x - image_width,
-                    self.window_size.y - image_height,
+                    (display_info.width as f32 - ctx.available_rect().max.x )
+                            + (ctx.available_rect().max.x  - self.image_size.x ) ,
+                    (display_info.height as f32 - ctx.available_rect().max.y )/2.
+                            + (ctx.available_rect().max.y - self.image_size.y )/2.-25.
+                            ,
                 );
                 self.image_size.x = image_width;
                 self.image_size.y = image_height;
