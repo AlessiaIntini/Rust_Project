@@ -143,8 +143,9 @@ pub fn create_figure(
         *draw_dim_variable = 0
     }
     if ctx.input(|i| i.pointer.primary_down()) {
+        let default_pos = Pos2::new(-1.0, -1.0);
         let mut pos_start = ctx.input(|i| i.pointer.press_origin().unwrap());
-        let pos_mouse = ctx.input(|i| i.pointer.hover_pos().unwrap());
+        let pos_mouse:Pos2 = ctx.input(|i| i.pointer.hover_pos().unwrap_or(default_pos));
         let mut fill = Color32::TRANSPARENT;
         if property.filled {
             fill = property.color_fill.convert_in_color_32();
@@ -166,6 +167,8 @@ pub fn create_figure(
             && pos_mouse.y < y2
             && pos_mouse.x > x1
             && pos_mouse.x < x2
+            && pos_mouse.x!=-1.
+            && pos_mouse.y!=-1.
         {
             match property.draw.unwrap() {
                 0 => {
