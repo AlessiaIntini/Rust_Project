@@ -448,7 +448,7 @@ impl RustScreenRecorder {
                 TypeEdit::Shape => {
                     let mut first = "";
                     match self.property.draw.unwrap() {
-                        0 => first = "Cicle",
+                        0 => first = "Circle",
                         1 => first = "Square",
                         2 => first = "Arrow",
                         _ => (),
@@ -536,7 +536,7 @@ impl RustScreenRecorder {
                     .width(80.0)
                     .selected_text(first.to_string())
                     .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut self.property.draw, Some(0), "cicle");
+                        ui.selectable_value(&mut self.property.draw, Some(0), "circle");
                         ui.selectable_value(&mut self.property.draw, Some(1), "square");
                         ui.selectable_value(&mut self.property.draw, Some(2), "arrow");
                     });
