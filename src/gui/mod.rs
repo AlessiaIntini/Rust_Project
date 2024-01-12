@@ -312,7 +312,7 @@ impl RustScreenRecorder {
                         }
                     }
                     if ctx.input(|i| i.key_pressed(egui::Key::Enter)) && self.cut != -1 {
-                        println!("{:?}", ctx.available_rect());
+                    
                         match self.screen_index {
                             Some(index) => {
                                 if self.timer.unwrap() != 0 {
@@ -320,7 +320,7 @@ impl RustScreenRecorder {
                                         self.timer.unwrap() as u64,
                                     ));
                                 }
-                                println!("{:?} {:?}", self.pos_start, self.pos_mouse);
+                             
                                 let display_info =
                                     self.screens[index as usize].clone().display_info;
                                 self.screenshot = take_screenshot_area(
@@ -389,16 +389,9 @@ impl RustScreenRecorder {
                     let display_info = self.screens[self.screen_index.unwrap() as usize]
                         .clone()
                         .display_info;
-                    println!("save");
-                    println!("Contex {:?}", ctx.available_rect().max);
-                    println!(
-                        "Border: x= {:?}, y= {:?}",
-                        self.border_size.x, self.border_size.y
-                    );
-                    println!("Image width: {:?}", self.image_size);
-                    println!("Display info {:?}", display_info);
-                    println!("ctx: {:?}", ctx.available_rect());
-                    let mut y = 0;
+                    #[warn(unused_mut)]
+                    let mut y=0 ;
+
                     if self.image_size.y < self.image_size.x {
                         y = (display_info.height as i32 - ctx.available_rect().max.y as i32) / 2
                             + (ctx.available_rect().max.y as i32 - self.image_size.y as i32) / 2
@@ -516,9 +509,7 @@ impl RustScreenRecorder {
                             }
 
                             self.property.draw = Some(3);
-                            let display_info = self.screens[self.screen_index.unwrap() as usize]
-                                .clone()
-                                .display_info;
+                          
                             crate::utility::draw::create_figure(
                                 self.vec_shape.as_mut(),
                                 ctx,
@@ -530,8 +521,6 @@ impl RustScreenRecorder {
                                 self.border_size.y,
                                 self.image_size.x,
                                 self.image_size.y,
-                                display_info.width,
-                                display_info.height,
                             );
                         });
                     });
@@ -577,9 +566,7 @@ impl RustScreenRecorder {
                 }
 
                 if self.property.draw.unwrap() >= 0 {
-                    let display_info = self.screens[self.screen_index.unwrap() as usize]
-                        .clone()
-                        .display_info;
+                    
                     crate::utility::draw::create_figure(
                         self.vec_shape.as_mut(),
                         ctx,
@@ -591,8 +578,7 @@ impl RustScreenRecorder {
                         self.border_size.y,
                         self.image_size.x,
                         self.image_size.y,
-                        display_info.width,
-                        display_info.height,
+                       
                     );
                 }
             });
@@ -621,9 +607,7 @@ impl RustScreenRecorder {
                 if ui.button("Exit").clicked() {
                     self.type_e = TypeEdit::None;
                 }
-                let display_info = self.screens[self.screen_index.unwrap() as usize]
-                    .clone()
-                    .display_info;
+               
                 crate::utility::draw::create_figure(
                     self.vec_shape.as_mut(),
                     ctx,
@@ -635,8 +619,7 @@ impl RustScreenRecorder {
                     self.border_size.y,
                     self.image_size.x,
                     self.image_size.y,
-                    display_info.width,
-                    display_info.height,
+                    
                 );
             });
         });

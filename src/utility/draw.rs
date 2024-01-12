@@ -136,8 +136,6 @@ pub fn create_figure(
     y: f32,
     image_width: f32,
     image_height: f32,
-    display_width: u32,
-    display_height: u32
 ) {
     if ctx.input(|i| i.pointer.primary_clicked()) {
         *draw_dim_variable = 0
@@ -150,15 +148,10 @@ pub fn create_figure(
         if property.filled {
             fill = property.color_fill.convert_in_color_32();
         }
-       println!("disegno");
-        println!("Contex avaible rect {:?}", ctx.available_rect());
-        println!("Border: x= {:?}, y= {:?}", x, y);
-        println!("Image width: {:?}, Image height: {:?}", image_width, image_height);
-        println!("Display width: {:?}, Display height: {:?}", display_width, display_height);
         let x1 = x / 2.0;
         let x2 = (x / 2.0) + image_width;
         let y1 = y;
-        let y2 = y + image_height;
+        let y2 = (y/2.0) + image_height;
         if pos_start.y > y1
             && pos_start.y < y2
             && pos_start.x > x1
@@ -185,7 +178,7 @@ pub fn create_figure(
                         if *draw_dim_variable == 0 {
                             vec_shape.push(Shape::Circle(circle));
                             *draw_dim_variable = 1;
-                            println!("Circle: Pos start: {:?}, Pos mouse: {:?}", pos_start, pos_mouse);
+                           
                         } else {
                             let i = vec_shape.len();
                             vec_shape[i - 1] = Shape::Circle(circle);
@@ -287,7 +280,7 @@ pub fn create_figure(
                             },
                         );
                         vec_shape.push(Shape::FreeHand(line));
-                        println!("Free hand: Pos start: {:?}, Pos mouse: {:?}", pos_start, pos_mouse);
+                      
                     }
                 }
                 _ => print!("Error"),
