@@ -334,7 +334,7 @@ impl RustScreenRecorder {
                                             - ctx.available_rect().max.y as i32)
                                             / 2,
                                     (self.pos_mouse.x - self.pos_start.x - 1.8 * width) as u32,
-                                    (self.pos_mouse.y - self.pos_start.y - width) as u32,
+                                    (self.pos_mouse.y - self.pos_start.y - 4.*width) as u32,
                                 );
 
                                 self.image = ctx.load_texture(
