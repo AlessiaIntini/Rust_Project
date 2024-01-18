@@ -283,22 +283,36 @@ impl RustScreenRecorder {
                     if ctx.input(|i| i.pointer.primary_down()) {
                         self.pos_start = ctx.input(|i| i.pointer.press_origin().unwrap());
                         self.pos_mouse = ctx.input(|i| i.pointer.hover_pos().unwrap());
-                        let rectangle = egui::epaint::RectShape::new(
-                            egui::Rect {
-                                min: self.pos_start,
-                                max: egui::epaint::pos2(self.pos_mouse.x, self.pos_mouse.y),
-                            },
-                            Rounding::ZERO,
-                            Color32::TRANSPARENT,
-                            egui::Stroke {
-                                width: 1.,
-                                color: Color32::BLACK,
-                            },
-                        );
-                        self.cut_rect = rectangle;
+                        let x1 = self.border_size.x / 2.;
+                        let x2 = (self.border_size.x / 2.) + self.image_size.x;
+                        let y1 = self.border_size.y;
+                        let y2 = self.border_size.y + self.image_size.y;
+                        if self.pos_start.y > y1
+                            && self.pos_start.y < y2
+                            && self.pos_start.x > x1
+                            && self.pos_start.x < x2
+                            && self.pos_mouse.y > y1
+                            && self.pos_mouse.y < y2
+                            && self.pos_mouse.x > x1
+                            && self.pos_mouse.x < x2
+                        {
+                            let rectangle = egui::epaint::RectShape::new(
+                                egui::Rect {
+                                    min: self.pos_start,
+                                    max: egui::epaint::pos2(self.pos_mouse.x, self.pos_mouse.y),
+                                },
+                                Rounding::ZERO,
+                                Color32::TRANSPARENT,
+                                egui::Stroke {
+                                    width: 1.,
+                                    color: Color32::BLACK,
+                                },
+                            );
+                            self.cut_rect = rectangle;
+                        }
                     }
                     if ctx.input(|i| i.key_pressed(egui::Key::Enter)) && self.cut != -1 {
-                        println!("{:?}", ctx.available_rect());
+                    
                         match self.screen_index {
                             Some(index) => {
                                 if self.timer.unwrap() != 0 {
@@ -306,17 +320,21 @@ impl RustScreenRecorder {
                                         self.timer.unwrap() as u64,
                                     ));
                                 }
-                                println!("{:?} {:?}", self.pos_start, self.pos_mouse);
+                             
                                 let display_info =
                                     self.screens[index as usize].clone().display_info;
                                 self.screenshot = take_screenshot_area(
                                     self.screens[index as usize].clone(),
                                     (self.pos_start.x + width - ctx.available_rect().max.x) as i32
                                         + display_info.width as i32,
-                                    (self.pos_start.y + width - ctx.available_rect().max.y) as i32
-                                        + display_info.height as i32,
+                                    // (self.pos_start.y + width - ctx.available_rect().max.y) as i32
+                                    //     + display_info.height as i32,
+                                    (self.pos_start.y + width) as i32
+                                        + (display_info.height as i32
+                                            - ctx.available_rect().max.y as i32)
+                                            / 2,
                                     (self.pos_mouse.x - self.pos_start.x - 1.8 * width) as u32,
-                                    (self.pos_mouse.y - self.pos_start.y - width) as u32,
+                                    (self.pos_mouse.y - self.pos_start.y - 4.*width) as u32,
                                 );
 
                                 self.image = ctx.load_texture(
@@ -330,6 +348,10 @@ impl RustScreenRecorder {
                                     ),
                                     Default::default(),
                                 );
+                                self.flag = 0;
+                                self.edit = Mood::None;
+                                self.property.draw = None;
+                                self.vec_shape = Vec::new();
                             }
                             None => (),
                         }
@@ -367,14 +389,26 @@ impl RustScreenRecorder {
                     let display_info = self.screens[self.screen_index.unwrap() as usize]
                         .clone()
                         .display_info;
+                    #[warn(unused_mut)]
+                    let mut y=0 ;
+
+                    if self.image_size.y < self.image_size.x {
+                        y = (display_info.height as i32 - ctx.available_rect().max.y as i32) / 2
+                            + (ctx.available_rect().max.y as i32 - self.image_size.y as i32) / 2
+                            + 5;
+                    } else {
+                        y = (display_info.height as i32 - ctx.available_rect().max.y as i32) / 2
+                            + (ctx.available_rect().max.y as i32 - self.image_size.y as i32)
+                            - 7;
+                    }
                     self.screenshot = take_screenshot_area(
                         self.screens[self.screen_index.unwrap() as usize].clone(),
-                        0. as i32,
-                        display_info.height as i32 - ctx.available_rect().max.y as i32
-                            + self.border_size.y as i32
-                            - 1,
-                        ctx.available_rect().max.x as u32,
-                        ctx.available_rect().max.y as u32 - self.border_size.y as u32,
+                        (display_info.width as i32 - ctx.available_rect().max.x as i32)
+                            + (ctx.available_rect().max.x as i32 - self.image_size.x as i32) / 2,
+                        y,
+                        //display_info.height as i32 - self.image_size.y as i32 - 7,
+                        self.image_size.x as u32,
+                        self.image_size.y as u32,
                     );
                     self.image = ctx.load_texture(
                         "screenshot",
@@ -414,7 +448,7 @@ impl RustScreenRecorder {
                 TypeEdit::Shape => {
                     let mut first = "";
                     match self.property.draw.unwrap() {
-                        0 => first = "Cicle",
+                        0 => first = "Circle",
                         1 => first = "Square",
                         2 => first = "Arrow",
                         _ => (),
@@ -475,6 +509,7 @@ impl RustScreenRecorder {
                             }
 
                             self.property.draw = Some(3);
+                          
                             crate::utility::draw::create_figure(
                                 self.vec_shape.as_mut(),
                                 ctx,
@@ -501,7 +536,7 @@ impl RustScreenRecorder {
                     .width(80.0)
                     .selected_text(first.to_string())
                     .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut self.property.draw, Some(0), "cicle");
+                        ui.selectable_value(&mut self.property.draw, Some(0), "circle");
                         ui.selectable_value(&mut self.property.draw, Some(1), "square");
                         ui.selectable_value(&mut self.property.draw, Some(2), "arrow");
                     });
@@ -531,6 +566,7 @@ impl RustScreenRecorder {
                 }
 
                 if self.property.draw.unwrap() >= 0 {
+                    
                     crate::utility::draw::create_figure(
                         self.vec_shape.as_mut(),
                         ctx,
@@ -542,6 +578,7 @@ impl RustScreenRecorder {
                         self.border_size.y,
                         self.image_size.x,
                         self.image_size.y,
+                       
                     );
                 }
             });
@@ -570,6 +607,7 @@ impl RustScreenRecorder {
                 if ui.button("Exit").clicked() {
                     self.type_e = TypeEdit::None;
                 }
+               
                 crate::utility::draw::create_figure(
                     self.vec_shape.as_mut(),
                     ctx,
@@ -581,6 +619,7 @@ impl RustScreenRecorder {
                     self.border_size.y,
                     self.image_size.x,
                     self.image_size.y,
+                    
                 );
             });
         });
@@ -678,7 +717,7 @@ impl eframe::App for RustScreenRecorder {
                 frame.info().window_info.size.x,
                 frame.info().window_info.size.y,
             );
-            ui.vertical_centered_justified(|ui| {
+            ui.centered_and_justified(|ui| {
                 let available_size = ui.available_size();
                 let image_size = self.image.size_vec2();
                 let aspect_ratio = image_size.x / image_size.y;
@@ -688,16 +727,39 @@ impl eframe::App for RustScreenRecorder {
                     } else {
                         (available_size.y * aspect_ratio, available_size.y)
                     };
+                // self.border_size = Vec2::new(
+                //     self.window_size.x - image_width,
+                //     self.window_size.y - image_height,
+                // );
+                let display_info =
+                self.screens[self.screen_index.unwrap() as usize].clone().display_info;
                 self.border_size = Vec2::new(
-                    self.window_size.x - image_width,
-                    self.window_size.y - image_height,
+                    (display_info.width as f32 - ctx.available_rect().max.x )
+                            + (ctx.available_rect().max.x  - self.image_size.x ) ,
+                    (display_info.height as f32 - ctx.available_rect().max.y )/2.
+                            + (ctx.available_rect().max.y - self.image_size.y )/2.-25.
+                            ,
                 );
                 self.image_size.x = image_width;
                 self.image_size.y = image_height;
-                ui.add(egui::Image::new((
-                    self.image.id(),
-                    Vec2::new(image_width, image_height),
-                )));
+
+                ui.add(
+                    egui::Image::new((self.image.id(), Vec2::new(image_width, image_height)))
+                        .maintain_aspect_ratio(true),
+                );
+
+                // ui.add(
+                //     egui::Image::new((self.image.id(), Vec2::new(image_width, image_height)))
+                //         .maintain_aspect_ratio(true)
+                //         .fit_to_exact_size(Vec2::new(
+                //             frame.info().window_info.size.x,
+                //             frame.info().window_info.size.y,
+                //         )),
+                // )
+                // .with_new_rect(egui::Rect::from_min_size(
+                //     egui::Pos2::new(self.border_size.x - 255.0, self.border_size.y),
+                //     Vec2::new(image_width, image_height),
+                // ));
                 crate::utility::draw::draw_rect(ui, &self.cut_rect);
                 crate::utility::draw::draw(ui, self.vec_shape.as_mut());
             });

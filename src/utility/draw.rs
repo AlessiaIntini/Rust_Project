@@ -135,30 +135,33 @@ pub fn create_figure(
     x: f32,
     y: f32,
     image_width: f32,
-    image_hight: f32,
+    image_height: f32,
 ) {
     if ctx.input(|i| i.pointer.primary_clicked()) {
         *draw_dim_variable = 0
     }
     if ctx.input(|i| i.pointer.primary_down()) {
+        let default_pos = Pos2::new(-1.0, -1.0);
         let mut pos_start = ctx.input(|i| i.pointer.press_origin().unwrap());
-        let pos_mouse = ctx.input(|i| i.pointer.hover_pos().unwrap());
+        let pos_mouse:Pos2 = ctx.input(|i| i.pointer.hover_pos().unwrap_or(default_pos));
         let mut fill = Color32::TRANSPARENT;
         if property.filled {
             fill = property.color_fill.convert_in_color_32();
         }
-        let x1 = (x / 2.0) - 31.0;
-        let x2 = ((x / 2.0) + image_width) + 31.0;
-        let y1 = y - 8.0;
-        let y2 = image_hight + 39.0;
+        let x1 = x / 2.0;
+        let x2 = (x / 2.0) + image_width;
+        let y1 = y;
+        let y2 = (y/2.0) + image_height;
         if pos_start.y > y1
             && pos_start.y < y2
             && pos_start.x > x1
             && pos_start.x < x2
-            && pos_mouse.y > y
+            && pos_mouse.y > y1
             && pos_mouse.y < y2
             && pos_mouse.x > x1
             && pos_mouse.x < x2
+            && pos_mouse.x!=-1.
+            && pos_mouse.y!=-1.
         {
             match property.draw.unwrap() {
                 0 => {
@@ -175,6 +178,7 @@ pub fn create_figure(
                         if *draw_dim_variable == 0 {
                             vec_shape.push(Shape::Circle(circle));
                             *draw_dim_variable = 1;
+                           
                         } else {
                             let i = vec_shape.len();
                             vec_shape[i - 1] = Shape::Circle(circle);
@@ -276,6 +280,7 @@ pub fn create_figure(
                             },
                         );
                         vec_shape.push(Shape::FreeHand(line));
+                      
                     }
                 }
                 _ => print!("Error"),
